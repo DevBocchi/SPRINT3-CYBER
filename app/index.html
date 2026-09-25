@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ford Pós-Venda: protótipo mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+
+</head>
+<body>
+<main class="stage">
+  <section class="phone" aria-label="Protótipo do aplicativo Ford Pós-Venda">
+    <div class="statusbar" aria-hidden="true">
+      <span id="clock">09:41</span>
+      <span class="notch"></span>
+      <span class="icons">
+        <svg width="17" height="11" viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx="1" fill="#fff"/><rect x="4.5" y="5" width="3" height="6" rx="1" fill="#fff"/><rect x="9" y="2.5" width="3" height="8.5" rx="1" fill="#fff"/><rect x="13.5" y="0" width="3" height="11" rx="1" fill="#fff"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12"><rect x=".5" y=".5" width="21" height="11" rx="3" fill="none" stroke="#fff" opacity=".6"/><rect x="2" y="2" width="16" height="8" rx="2" fill="#fff"/><rect x="22.5" y="4" width="2" height="4" rx="1" fill="#fff" opacity=".6"/></svg>
+      </span>
+    </div>
+    <div class="screen" id="screen"></div>
+  </section>
+
+  <aside class="devpanel" aria-label="Log de segurança">
+    <header>
+      <h2>Log de segurança</h2>
+      <p>Eventos em JSON que o app enviaria à API. Nenhuma senha ou token é registrado. Use estes registros como evidência da Etapa 3.</p>
+      <div class="dev-actions">
+        <button type="button" id="copyLogs">Copiar logs</button>
+        <button type="button" id="clearLogs">Limpar</button>
+      </div>
+    </header>
+    <section class="dev-sec" aria-labelledby="tituloSim">
+      <h3 id="tituloSim">Simulações de ataque</h3>
+      <p>Cada perfil libera testes diferentes. Botões apagados não se aplicam ao perfil conectado.</p>
+      <div class="sim-grid">
+        <button type="button" data-sim="idor" data-perfis="cliente" disabled>Ver veículo de outro cliente</button>
+        <button type="button" data-sim="token" data-perfis="cliente analista admin" disabled>Adulterar token para admin</button>
+        <button type="button" data-sim="flood" data-perfis="cliente" disabled>Disparar 35 requisições</button>
+        <button type="button" data-sim="cache" data-perfis="cliente" disabled>Adulterar cache local</button>
+        <button type="button" data-sim="duplo" data-perfis="cliente" disabled>Clique duplo no agendamento</button>
+        <button type="button" data-sim="xss" data-perfis="cliente" disabled>Injetar script nas observações</button>
+        <button type="button" data-sim="extras" data-perfis="cliente" disabled>Enviar campos extras no pedido</button>
+        <button type="button" data-sim="escalada" data-perfis="cliente analista admin" disabled>Acessar rota de outro perfil</button>
+        <button type="button" data-sim="revogar" data-perfis="admin" disabled>Encerrar sessão e reusar token</button>
+        <button type="button" data-sim="exportar" data-perfis="cliente" disabled>Exportar dados de outro cliente</button>
+        <button type="button" data-sim="reauth" data-perfis="cliente" disabled>Excluir conta com senha errada</button>
+      </div>
+      <div class="sim-result" id="simResult" aria-live="polite"></div>
+    </section>
+    <details class="dev-sec">
+      <summary>Armazenamento local do aparelho</summary>
+      <div class="storage" id="storageView"></div>
+    </details>
+    <ol class="loglist" id="logList" aria-live="polite"></ol>
+  </aside>
+</main>
+
+<script src="js/app.js"></script>
+</body>
+</html>

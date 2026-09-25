@@ -1,0 +1,311 @@
+/* =========================================================
+   TOKENS DE DESIGN (cores, fontes, raios)
+   ========================================================= */
+:root{
+  --ford-blue:#16408C;
+  --ford-deep:#0A2350;
+  --surface:#EDF1F8;
+  --card:#FFFFFF;
+  --ink:#0E1B33;
+  --muted:#58657E;
+  --line:#D5DDEA;
+  --signal:#E3A21A;     /* âmbar: luz de aviso do painel */
+  --danger:#B8322A;
+  --ok:#1C7F55;
+  --page:#DCE3EE;
+  --frame:#1B2233;
+  --log-bg:#FFFFFF;
+  --font:"Archivo", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ford-blue:#4E7FE0; --ford-deep:#0B1B3D; --surface:#0E1729; --card:#16223A;
+    --ink:#E7EDF8; --muted:#97A5BF; --line:#2A3A58; --page:#070D1A; --frame:#2A3350;
+    --log-bg:#101A2E; --danger:#E56A5F; --ok:#4CC08D; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ford-blue:#4E7FE0; --ford-deep:#0B1B3D; --surface:#0E1729; --card:#16223A;
+  --ink:#E7EDF8; --muted:#97A5BF; --line:#2A3A58; --page:#070D1A; --frame:#2A3350;
+  --log-bg:#101A2E; --danger:#E56A5F; --ok:#4CC08D; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%; scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0; min-height:100%; background:var(--page); color:var(--ink); font-family:var(--font); -webkit-font-smoothing:antialiased}
+button,input{font:inherit; color:inherit}
+:focus-visible{outline:3px solid var(--signal); outline-offset:2px}
+@media (prefers-reduced-motion: reduce){ *{animation:none!important; transition:none!important} }
+
+/* =========================================================
+   PALCO: celular à esquerda, log de segurança à direita
+   ========================================================= */
+.stage{display:flex; gap:32px; justify-content:center; align-items:flex-start; padding:32px 20px; max-width:1180px; margin:0 auto}
+.phone{flex:0 0 390px; height:820px; border:11px solid var(--frame); border-radius:52px; background:var(--surface); overflow:hidden; display:flex; flex-direction:column; position:relative; box-shadow:0 30px 60px -30px rgba(10,35,80,.45)}
+.statusbar{display:flex; justify-content:space-between; align-items:center; padding:12px 26px 6px; font-size:14px; font-weight:600; background:var(--ford-deep); color:#fff}
+.statusbar .notch{width:110px; height:26px; background:var(--frame); border-radius:0 0 16px 16px; position:absolute; left:50%; top:0; transform:translateX(-50%)}
+.statusbar .icons{display:flex; gap:6px; align-items:center}
+.statusbar svg{display:block}
+.screen{flex:1; overflow-y:auto; display:flex; flex-direction:column}
+
+/* =========================================================
+   TELA DE LOGIN
+   ========================================================= */
+.hero{background:var(--ford-deep); color:#fff; padding:28px 26px 34px}
+.brand{font-weight:800; font-size:15px; letter-spacing:.01em; opacity:.85; margin:0 0 36px}
+.hero h1{font-size:34px; line-height:1.05; font-weight:800; margin:0 0 12px; letter-spacing:-.02em}
+.hero p{margin:0; font-size:15px; line-height:1.45; opacity:.8; max-width:30ch}
+
+.form{padding:26px 24px 8px; display:flex; flex-direction:column; gap:16px}
+.field label{display:block; font-size:14px; font-weight:600; margin-bottom:6px}
+.input-wrap{position:relative}
+.field input{width:100%; height:50px; border:1.5px solid var(--line); border-radius:12px; padding:0 14px; background:var(--card); font-size:16px}
+.field input:focus{border-color:var(--ford-blue); outline:none; box-shadow:0 0 0 3px color-mix(in srgb, var(--ford-blue) 22%, transparent)}
+.field input[aria-invalid="true"]{border-color:var(--danger)}
+.field .hint{font-size:13px; color:var(--danger); margin-top:6px; min-height:0}
+.toggle-pass{position:absolute; right:6px; top:6px; height:38px; padding:0 10px; border:0; background:transparent; color:var(--ford-blue); font-weight:600; font-size:14px; cursor:pointer; border-radius:8px}
+
+.btn{height:52px; border:0; border-radius:12px; font-weight:700; font-size:16px; cursor:pointer}
+.btn-primary{background:var(--ford-blue); color:#fff}
+.btn-primary:disabled{opacity:.55; cursor:not-allowed}
+.btn-ghost{background:transparent; border:1.5px solid var(--line); color:var(--ink)}
+
+.alert{border-radius:12px; padding:12px 14px; font-size:14px; line-height:1.4; border-left:4px solid}
+.alert-error{background:color-mix(in srgb, var(--danger) 10%, var(--card)); border-color:var(--danger)}
+.alert-warn{background:color-mix(in srgb, var(--signal) 16%, var(--card)); border-color:var(--signal)}
+
+.demo{padding:18px 24px 8px}
+.demo h2{font-size:14px; font-weight:600; margin:0 0 10px; color:var(--muted)}
+.demo-list{display:grid; gap:8px}
+.demo-btn{display:flex; justify-content:space-between; align-items:center; gap:10px; text-align:left; padding:10px 14px; border:1.5px dashed var(--line); border-radius:12px; background:transparent; cursor:pointer}
+.demo-btn strong{display:block; font-size:14px}
+.demo-btn span{font-size:13px; color:var(--muted)}
+.demo-btn em{font-style:normal; font-size:12px; font-weight:600; color:var(--ford-blue)}
+
+.foot{margin-top:auto; padding:18px 24px 22px; font-size:12px; line-height:1.5; color:var(--muted); display:flex; gap:8px; align-items:flex-start}
+
+/* =========================================================
+   TELA PÓS-LOGIN (provisória na Parte 1)
+   ========================================================= */
+.topbar{background:var(--ford-deep); color:#fff; padding:18px 22px 22px}
+.topbar .brand{margin-bottom:18px}
+.topbar h1{margin:0; font-size:26px; font-weight:800; letter-spacing:-.01em}
+.role{display:inline-block; margin-top:10px; font-size:13px; font-weight:600; padding:4px 10px; border-radius:999px; background:rgba(255,255,255,.14)}
+.body{padding:20px 20px 24px; display:flex; flex-direction:column; gap:14px}
+.card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px}
+.card h2{margin:0 0 10px; font-size:16px}
+.kv{display:grid; grid-template-columns:auto 1fr; gap:6px 14px; font-size:14px; margin:0}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0; font-weight:600; word-break:break-all}
+.countdown{font-variant-numeric:tabular-nums}
+.countdown.low{color:var(--danger)}
+.muted{color:var(--muted); font-size:14px; line-height:1.5; margin:0}
+
+/* =========================================================
+   PAINEL DE LOG (fora do celular, só para desenvolvimento)
+   ========================================================= */
+.devpanel{flex:1; min-width:0; max-width:620px; background:var(--log-bg); border:1px solid var(--line); border-radius:18px; display:flex; flex-direction:column; height:820px; overflow-y:auto}
+.devpanel header{padding:18px 20px 14px; border-bottom:1px solid var(--line)}
+.devpanel h2{margin:0 0 4px; font-size:18px}
+.devpanel p{margin:0 0 12px; font-size:14px; color:var(--muted); line-height:1.45}
+.dev-actions{display:flex; gap:8px; flex-wrap:wrap}
+.dev-actions button{height:36px; padding:0 14px; border-radius:10px; border:1.5px solid var(--line); background:transparent; cursor:pointer; font-size:14px; font-weight:600}
+.loglist{list-style:none; margin:0; padding:12px; overflow:auto; flex:1; min-height:260px; display:flex; flex-direction:column-reverse; gap:8px}
+.loglist li{flex:none; border:1px solid var(--line); border-left:4px solid var(--muted); border-radius:10px; overflow-x:auto}
+.loglist li.INFO{border-left-color:var(--ok)}
+.loglist li.WARN{border-left-color:var(--signal)}
+.loglist li.ERROR,.loglist li.CRITICAL{border-left-color:var(--danger)}
+.loglist pre{margin:0; padding:10px 12px; font-family:var(--mono); font-size:12px; line-height:1.5; white-space:pre}
+.empty{color:var(--muted); font-size:14px; padding:12px}
+
+/* =========================================================
+   TELA DO CLIENTE (Parte 2)
+   ========================================================= */
+.topline{display:flex; justify-content:space-between; align-items:center; margin-bottom:18px}
+.topline .brand{margin:0}
+.btn-sair{height:34px; padding:0 12px; border-radius:10px; border:1px solid rgba(255,255,255,.35); background:transparent; color:#fff; font-size:14px; font-weight:600; cursor:pointer}
+.sessao-linha{margin:8px 0 0; font-size:13px; opacity:.75}
+.chips{display:flex; gap:8px; overflow-x:auto; padding-bottom:2px}
+.chip{flex:none; height:36px; padding:0 14px; border-radius:999px; border:1.5px solid var(--line); background:var(--card); font-size:14px; font-weight:600; cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ford-blue); border-color:var(--ford-blue); color:#fff}
+
+.veiculo{background:var(--ford-blue); color:#fff; border-radius:20px; padding:20px 18px 18px}
+.veiculo .modelo{font-size:44px; font-weight:800; letter-spacing:-.03em; line-height:1; margin:0}
+.veiculo .versao{margin:6px 0 18px; font-size:15px; opacity:.85}
+.veiculo dl{display:grid; grid-template-columns:1fr 1fr; gap:14px 12px; margin:0}
+.veiculo dt{font-size:12px; opacity:.7; margin-bottom:2px}
+.veiculo dd{margin:0; font-size:15px; font-weight:700; font-variant-numeric:tabular-nums}
+.vin{grid-column:1 / -1; display:flex; justify-content:space-between; align-items:flex-end; gap:10px; padding-top:12px; border-top:1px solid rgba(255,255,255,.2)}
+.vin dd{font-family:var(--mono); font-size:14px; letter-spacing:.04em; word-break:break-all}
+.vin button{flex:none; height:32px; padding:0 12px; border-radius:9px; border:1px solid rgba(255,255,255,.4); background:transparent; color:#fff; font-size:13px; font-weight:600; cursor:pointer}
+.telemetria{margin:12px 0 0; font-size:12px; opacity:.75}
+
+.card-head{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px}
+.card-head h2{margin:0}
+.pill{font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px; white-space:nowrap}
+.pill.em_dia,.pill.ativa{background:color-mix(in srgb, var(--ok) 15%, var(--card)); color:var(--ok)}
+.pill.proxima{background:color-mix(in srgb, var(--signal) 22%, var(--card)); color:color-mix(in srgb, var(--signal) 55%, var(--ink))}
+.pill.atrasada,.pill.expirada{background:color-mix(in srgb, var(--danger) 13%, var(--card)); color:var(--danger)}
+.rev-titulo{font-size:20px; font-weight:800; margin:0 0 10px; letter-spacing:-.01em}
+.barra{height:8px; border-radius:99px; background:var(--line); overflow:hidden}
+.barra span{display:block; height:100%; background:var(--ford-blue); border-radius:99px}
+.barra.proxima span{background:var(--signal)}
+.barra.atrasada span{background:var(--danger)}
+.barra-legenda{display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin:6px 0 12px; font-variant-numeric:tabular-nums}
+.card p.linha{margin:0 0 14px; font-size:14px; line-height:1.5}
+.btn-full{width:100%}
+.nota{font-size:13px; color:var(--muted); margin:10px 0 0}
+
+.historico{list-style:none; margin:0; padding:0}
+.historico li{display:grid; grid-template-columns:auto 1fr; gap:2px 12px; padding:10px 0; border-top:1px solid var(--line); font-size:14px}
+.historico li:first-child{border-top:0; padding-top:0}
+.historico .data{grid-row:span 2; font-weight:700; font-variant-numeric:tabular-nums; color:var(--muted); min-width:74px}
+.historico .local{color:var(--muted); font-size:13px}
+
+.banner{border-radius:12px; padding:10px 12px; font-size:13px; line-height:1.45; background:color-mix(in srgb, var(--signal) 16%, var(--card)); border-left:4px solid var(--signal)}
+
+/* =========================================================
+   AGENDAMENTO (Parte 3)
+   ========================================================= */
+.pill.agendada{background:color-mix(in srgb, var(--ford-blue) 14%, var(--card)); color:var(--ford-blue)}
+.agendado{border-top:1px solid var(--line); padding-top:12px}
+.agendado-quando{margin:0; font-size:17px; font-weight:800}
+.agendado-onde{margin:2px 0 12px; font-size:14px; color:var(--muted); line-height:1.45}
+
+.form-ag{padding:20px 20px 28px; display:flex; flex-direction:column; gap:22px}
+.grupo{border:0; margin:0; padding:0; min-width:0; display:flex; flex-direction:column; gap:8px}
+.grupo legend{font-size:16px; font-weight:800; padding:0; margin-bottom:8px}
+.grupo .vazio{font-size:14px; color:var(--muted); margin:0}
+.opcao{display:flex; gap:12px; align-items:flex-start; padding:12px 14px; border:1.5px solid var(--line); border-radius:14px; background:var(--card); cursor:pointer}
+.opcao input{margin:2px 0 0; accent-color:var(--ford-blue); width:18px; height:18px; flex:none}
+.opcao strong{display:block; font-size:15px}
+.opcao span{font-size:13px; color:var(--muted); line-height:1.4}
+.opcao:has(input:checked){border-color:var(--ford-blue); box-shadow:0 0 0 1px var(--ford-blue)}
+.opcao:has(input:disabled){opacity:.5; cursor:not-allowed}
+.tag{display:inline-block; margin-left:6px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:99px; vertical-align:1px; background:color-mix(in srgb, var(--signal) 22%, var(--card)); color:color-mix(in srgb, var(--signal) 55%, var(--ink))}
+.dias{display:flex; gap:8px; overflow-x:auto; padding-bottom:4px}
+.dia{flex:none; width:62px; padding:8px 0; border-radius:12px; border:1.5px solid var(--line); background:var(--card); cursor:pointer; text-align:center; line-height:1.2}
+.dia small{display:block; font-size:12px; color:var(--muted)}
+.dia b{font-size:16px; font-variant-numeric:tabular-nums}
+.dia[aria-pressed="true"]{background:var(--ford-blue); border-color:var(--ford-blue); color:#fff}
+.dia[aria-pressed="true"] small{color:rgba(255,255,255,.8)}
+.horas{display:grid; grid-template-columns:repeat(4, 1fr); gap:8px}
+.hora{height:42px; border-radius:10px; border:1.5px solid var(--line); background:var(--card); font-weight:600; font-variant-numeric:tabular-nums; cursor:pointer}
+.hora[aria-pressed="true"]{background:var(--ford-blue); border-color:var(--ford-blue); color:#fff}
+.hora:disabled{background:transparent; color:var(--muted); text-decoration:line-through; cursor:not-allowed; opacity:.6}
+textarea.obs{width:100%; min-height:88px; resize:vertical; border:1.5px solid var(--line); border-radius:12px; padding:10px 12px; background:var(--card); font:inherit; font-size:15px}
+textarea.obs:focus{border-color:var(--ford-blue); outline:none; box-shadow:0 0 0 3px color-mix(in srgb, var(--ford-blue) 22%, transparent)}
+textarea.obs[aria-invalid="true"]{border-color:var(--danger)}
+.contador{display:flex; justify-content:space-between; gap:10px; font-size:12px; color:var(--muted); margin-top:4px}
+.contador .erro{color:var(--danger)}
+
+.confirmado{background:var(--ford-blue); color:#fff; border-radius:20px; padding:20px 18px}
+.confirmado p{margin:0}
+.confirmado .rot{font-size:13px; opacity:.75}
+.protocolo{font-family:var(--mono); font-size:26px; font-weight:700; letter-spacing:.02em; margin-top:4px!important}
+.detalhes{margin:0}
+.detalhes div{padding:10px 0; border-top:1px solid var(--line)}
+.detalhes div:first-child{border-top:0; padding-top:0}
+.detalhes dt{font-size:13px; color:var(--muted)}
+.detalhes dd{margin:2px 0 0; font-size:15px; font-weight:600; line-height:1.4; word-break:break-word}
+.detalhes dd small{display:block; font-weight:400; color:var(--muted); font-size:13px}
+
+/* =========================================================
+   ANALISTA E ADMINISTRADOR (Parte 4)
+   ========================================================= */
+.abas{display:flex; gap:4px; padding:4px; border-radius:12px; background:color-mix(in srgb, var(--ford-blue) 9%, var(--card)); border:1px solid var(--line)}
+.aba{flex:1; height:38px; border:0; border-radius:9px; background:transparent; font-weight:700; font-size:14px; color:var(--muted); cursor:pointer}
+.aba[aria-selected="true"]{background:var(--card); color:var(--ink); box-shadow:0 1px 3px rgba(10,35,80,.18)}
+.kpi{font-size:60px; font-weight:800; letter-spacing:-.04em; line-height:1; margin:8px 0 10px!important; font-variant-numeric:tabular-nums}
+.barras{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px}
+.barras li{display:grid; grid-template-columns:1fr auto; gap:5px 10px; font-size:14px}
+.barras .val{font-weight:700; font-variant-numeric:tabular-nums}
+.barras .val small{font-weight:400; color:var(--muted); font-size:12px}
+.barras .barra{grid-column:1 / -1}
+.insight{margin:14px 0 0; font-size:13px; line-height:1.45; color:var(--muted)}
+.lista-leads{display:flex; flex-direction:column; gap:12px}
+.lead-ref{font-family:var(--mono); font-weight:700; font-size:15px; letter-spacing:.02em}
+.lead p,.usuario p{margin:0 0 6px; font-size:14px; line-height:1.45}
+.lead .motivo,.usuario .motivo{color:var(--muted)}
+.usuario .motivo.alerta{color:var(--danger); font-weight:600}
+.lead-acao{display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:10px; padding-top:10px; border-top:1px solid var(--line)}
+.btn-sm{height:38px; padding:0 14px; border-radius:10px; border:0; background:var(--ford-blue); color:#fff; font-size:14px; font-weight:700; cursor:pointer; white-space:nowrap}
+.btn-sm.ghost{background:transparent; border:1.5px solid var(--line); color:var(--ink)}
+.btn-sm:disabled{opacity:.5; cursor:not-allowed}
+.pill.alta{background:color-mix(in srgb, var(--danger) 13%, var(--card)); color:var(--danger)}
+.pill.media{background:color-mix(in srgb, var(--signal) 22%, var(--card)); color:color-mix(in srgb, var(--signal) 55%, var(--ink))}
+.pill.agendado{background:color-mix(in srgb, var(--ok) 15%, var(--card)); color:var(--ok)}
+.pill.encaminhado,.pill.perfil{background:color-mix(in srgb, var(--ford-blue) 13%, var(--card)); color:var(--ford-blue)}
+.acoes{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; padding-top:12px; border-top:1px solid var(--line)}
+.linha-perfil{display:flex; gap:8px; width:100%}
+.linha-perfil select{flex:1; min-width:0; height:38px; border-radius:10px; border:1.5px solid var(--line); background:var(--card); padding:0 10px; font-size:14px}
+.audit{list-style:none; margin:0; padding:0}
+.audit li{display:grid; grid-template-columns:auto 1fr; gap:2px 12px; padding:9px 0; border-top:1px solid var(--line); font-size:13px}
+.audit li:first-child{border-top:0; padding-top:0}
+.audit time{grid-row:span 2; font-family:var(--mono); font-size:12px; color:var(--muted)}
+.audit .ev{font-family:var(--mono); font-size:12px; font-weight:700; word-break:break-all}
+.audit .ev.CRITICAL{color:var(--danger)}
+.audit .ev.WARN{color:color-mix(in srgb, var(--signal) 60%, var(--ink))}
+.audit .det{color:var(--muted); word-break:break-word; line-height:1.4}
+.tabela-wrap{overflow-x:auto}
+.matriz{width:100%; border-collapse:collapse; font-size:13px}
+.matriz th,.matriz td{padding:9px 6px; border-top:1px solid var(--line); text-align:center}
+.matriz thead th{border-top:0; font-size:12px; color:var(--muted); font-weight:700}
+.matriz tbody th{text-align:left; font-family:var(--mono); font-size:11px; font-weight:600}
+.matriz td{width:52px}
+.matriz .sim{color:var(--ok); font-weight:800; font-size:15px}
+.matriz .nao{color:var(--muted)}
+
+/* =========================================================
+   PRIVACIDADE E LGPD (Parte 5)
+   ========================================================= */
+.switch-row{display:flex; justify-content:space-between; align-items:flex-start; gap:14px; padding:12px 0; border-top:1px solid var(--line)}
+.card h2 + .switch-row{border-top:0; padding-top:0}
+.switch-row strong{display:block; font-size:15px; margin-bottom:2px}
+.switch-row span{font-size:13px; color:var(--muted); line-height:1.4}
+.switch{flex:none; position:relative; width:50px; height:30px; margin-top:2px; border:0; border-radius:999px; background:var(--line); cursor:pointer; transition:background .15s}
+.switch::after{content:""; position:absolute; top:3px; left:3px; width:24px; height:24px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.3); transition:transform .15s}
+.switch[aria-checked="true"]{background:var(--ok)}
+.switch[aria-checked="true"]::after{transform:translateX(20px)}
+.switch:disabled{opacity:.55}
+.switch-row .salvo{display:block; margin-top:4px; font-size:12px; font-weight:600; color:var(--ok)}
+.switch-row .salvo.erro{color:var(--danger)}
+.hist{list-style:none; margin:0; padding:0}
+.hist li{display:grid; grid-template-columns:1fr auto; align-items:center; gap:3px 10px; padding:9px 0; border-top:1px solid var(--line); font-size:14px}
+.hist li:first-child{border-top:0; padding-top:0}
+.hist .quando{grid-column:1 / -1; font-size:12px; color:var(--muted)}
+.pill.concedido{background:color-mix(in srgb, var(--ok) 15%, var(--card)); color:var(--ok)}
+.pill.revogado{background:color-mix(in srgb, var(--muted) 16%, var(--card)); color:var(--muted)}
+.pilha{display:flex; flex-direction:column; gap:8px}
+.btn-ghost.perigo{color:var(--danger); border-color:color-mix(in srgb, var(--danger) 45%, var(--line))}
+.btn-danger{background:var(--danger); color:#fff}
+.btn-danger:disabled{opacity:.45; cursor:not-allowed}
+.export{margin:0; padding:12px; max-height:420px; overflow:auto; white-space:pre; font-family:var(--mono); font-size:11.5px; line-height:1.5; background:var(--card); border:1px solid var(--line); border-radius:12px}
+.lista-simples{margin:0; padding-left:18px; font-size:14px; line-height:1.55}
+.lista-simples li{margin-bottom:6px}
+.check{display:flex; gap:10px; align-items:flex-start; font-size:14px; line-height:1.45; cursor:pointer}
+.check input{flex:none; width:18px; height:18px; margin-top:2px; accent-color:var(--danger)}
+
+/* Painel: simulações e armazenamento */
+.dev-sec{padding:14px 20px; border-bottom:1px solid var(--line)}
+.dev-sec h3{margin:0 0 4px; font-size:15px}
+.dev-sec p{margin:0 0 10px; font-size:13px; color:var(--muted); line-height:1.45}
+.sim-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+.sim-grid button{min-height:40px; padding:6px 10px; border-radius:10px; border:1.5px solid var(--line); background:transparent; cursor:pointer; font-size:13px; font-weight:600; text-align:left}
+.sim-grid button:disabled{opacity:.45; cursor:not-allowed}
+.sim-result{margin-top:10px; font-family:var(--mono); font-size:12px; min-height:1.5em; color:var(--muted); word-break:break-word}
+details.dev-sec summary{cursor:pointer; font-weight:700; font-size:15px}
+.storage{margin-top:10px; font-family:var(--mono); font-size:12px; line-height:1.5}
+.storage pre{margin:0 0 8px; padding:10px; border:1px solid var(--line); border-radius:10px; overflow-x:auto; white-space:pre}
+
+@media (max-width: 860px){
+  .stage{flex-direction:column; align-items:stretch; padding:0; gap:0}
+  .phone{flex:none; width:100%; height:auto; min-height:100%; border:0; border-radius:0; box-shadow:none}
+  .statusbar{display:none}
+  .devpanel{max-width:none; height:auto; border-radius:0; border-left:0; border-right:0}
+  .loglist{max-height:420px}
+}
