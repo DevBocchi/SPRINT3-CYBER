@@ -51,6 +51,9 @@ const CONTAS_TESTE = [
 /* =========================================================
    3. LOG ESTRUTURADO (JSON)
    ========================================================= */
+// IP público simulado do aparelho (em produção vem do gateway da API, não do app)
+const IP_ORIGEM = '177.72.14.203';
+
 const Log = {
   itens: [],
   registrar(evento, nivel, dados = {}) {
@@ -60,11 +63,13 @@ const Log = {
       event: evento,
       trace_id: crypto.randomUUID(),
       source: 'app-mobile',
-      app_version: '0.5.0',
+      ip: IP_ORIGEM,
+      app_version: '0.7.0',
       ...dados
     };
     this.itens.push(entrada);
     desenharLog(entrada);
+    Monitor.processar(entrada); // seção 23: regras de alerta avaliadas em tempo real
     return entrada;
   }
 };
@@ -73,6 +78,13 @@ function mascararEmail(email) {
   const [u, d] = String(email).split('@');
   if (!d) return '***';
   return u.slice(0, 1) + '***@' + d;
+}
+
+// Pseudônimo estável da conta para os logs. O e-mail mascarado ("a***@ford.com") colide entre
+// contas diferentes; este código não colide e não revela o e-mail.
+// Em produção: HMAC-SHA256 com uma chave (pepper) guardada no cofre de segredos.
+function refConta(email) {
+  return 'acc-' + hashSimples('ford-log-pepper|' + String(email).toLowerCase()).toString(16).padStart(8, '0');
 }
 
 function desenharLog(entrada) {
@@ -169,6 +181,7 @@ async function autenticar(email, senha) {
    Payload sem dados pessoais: só id, perfil, emissão, validade e jti.
    ========================================================= */
 let chaveJWT = null;
+let chaveJWTAnterior = null; // após rotação: distingue token antigo (esperado) de token forjado (ataque)
 
 async function iniciarChaveJWT() {
   chaveJWT = await crypto.subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
@@ -201,7 +214,10 @@ async function analisarToken(token) {
     const header = JSON.parse(new TextDecoder().decode(b64urlParaBytes(h)));
     if (header.alg !== 'HS256') return { payload: null, motivo: 'alg_not_allowed' }; // recusa "alg: none"
     const ok = await crypto.subtle.verify('HMAC', chaveJWT, b64urlParaBytes(s), enc.encode(h + '.' + p));
-    if (!ok) return { payload: null, motivo: 'signature_mismatch' };
+    if (!ok) {
+      const antiga = chaveJWTAnterior && await crypto.subtle.verify('HMAC', chaveJWTAnterior, b64urlParaBytes(s), enc.encode(h + '.' + p));
+      return { payload: null, motivo: antiga ? 'key_rotated' : 'signature_mismatch' };
+    }
     const payload = JSON.parse(new TextDecoder().decode(b64urlParaBytes(p)));
     if (payload.exp <= Math.floor(Date.now() / 1000)) return { payload: null, motivo: 'expired' };
     const dono = USUARIOS.find(u => u.id === payload.sub);
@@ -242,6 +258,7 @@ function encerrarSessao(motivo) {
   ativarSimulacoes(false);
   const avisos = {
     expirou: 'Sua sessão expirou. Entre novamente para continuar.',
+    seguranca: 'Sua sessão foi encerrada pela equipe de segurança. Entre novamente.',
     excluida: 'Conta excluída. Seus dados pessoais foram removidos. No protótipo, recarregue a página para restaurar a conta de teste.'
   };
   telaLogin(avisos[motivo] || null);
@@ -392,13 +409,20 @@ async function aoEnviarLogin(ev) {
   const erros = validarLogin(email, senha);
   marcarErros(erros);
   if (Object.keys(erros).length) {
-    Log.registrar('auth.login.invalid_input', 'WARN', { user: mascararEmail(email), fields: Object.keys(erros) });
+    Log.registrar('auth.login.invalid_input', 'WARN', { user: mascararEmail(email), account_ref: refConta(email), fields: Object.keys(erros) });
     return;
   }
 
-  // 2) Conta bloqueada?
+  // 2) Origem bloqueada pela resposta a incidentes?
+  if (ipBloqueado()) {
+    Log.registrar('waf.blocked', 'WARN', { route: 'login', status: 403, reason: 'ip_blocked_by_incident_response' });
+    mostrarMsg('erro', 'Acesso temporariamente bloqueado pela equipe de segurança.');
+    return;
+  }
+
+  // 3) Conta bloqueada?
   if (estadoBloqueio(email)) {
-    Log.registrar('auth.login.blocked_attempt', 'WARN', { user: mascararEmail(email), outcome: 'rejected_locked' });
+    Log.registrar('auth.login.blocked_attempt', 'WARN', { user: mascararEmail(email), account_ref: refConta(email), outcome: 'rejected_locked' });
     mostrarMsg('erro', 'Muitas tentativas. Aguarde para tentar novamente.');
     exibirBloqueio(email);
     return;
@@ -411,10 +435,10 @@ async function aoEnviarLogin(ev) {
 
   if (!usuario) {
     const r = registrarFalha(email);
-    Log.registrar('auth.login.failure', 'WARN', { user: mascararEmail(email), outcome: 'invalid_credentials', attempts_left: r.restantes });
+    Log.registrar('auth.login.failure', 'WARN', { user: mascararEmail(email), account_ref: refConta(email), outcome: 'invalid_credentials', attempts_left: r.restantes });
     if (r.bloqueou) {
       Log.registrar('auth.account.lockout', 'CRITICAL', {
-        user: mascararEmail(email), reason: 'brute_force_suspected',
+        user: mascararEmail(email), account_ref: refConta(email), reason: 'brute_force_suspected',
         threshold: CONFIG.MAX_TENTATIVAS, lock_seconds: CONFIG.BLOQUEIO_MS / 1000
       });
       mostrarMsg('erro', `Conta bloqueada por ${CONFIG.BLOQUEIO_MS / 1000} segundos após ${CONFIG.MAX_TENTATIVAS} tentativas sem sucesso.`);
@@ -524,10 +548,17 @@ function negar(payload, rota, motivo, status, erro) {
 }
 
 async function api(metodo, rota, token, opcoes = {}) {
+  // 0) Origem bloqueada pela equipe de resposta a incidentes (seção 25)
+  if (ipBloqueado()) {
+    Log.registrar('waf.blocked', 'WARN', { method: metodo, route: rota, status: 403, reason: 'ip_blocked_by_incident_response' });
+    return { status: 403, erro: 'Acesso bloqueado pela equipe de segurança.' };
+  }
+
   // 1) Autenticação: token válido, assinado e dentro da validade
   const { payload, motivo } = await analisarToken(token);
   if (!payload) {
-    Log.registrar('api.auth.rejected', motivo === 'expired' ? 'INFO' : 'CRITICAL',
+    const nivelMotivo = { expired: 'INFO', key_rotated: 'INFO', revoked: 'WARN' }[motivo] || 'CRITICAL';
+    Log.registrar('api.auth.rejected', nivelMotivo,
       { method: metodo, route: rota, reason: motivo, status: 401 });
     return { status: 401, erro: 'Sessão inválida. Entre novamente.' };
   }
@@ -1434,6 +1465,35 @@ const SIMULACOES = {
     // Triagem Semgrep: FALSO POSITIVO. Senha propositalmente errada usada pela simulação de ataque.
     const r = await api('POST', '/v1/me/deletion', sessao.token, { corpo: { senha: 'SenhaErrada1' } }); // nosemgrep: ford.segredo-fixo-no-codigo
     return `Exclusão de conta com senha errada → ${r.status} ${r.erro || ''}`;
+  },
+  // IoT: uma leitura legítima, um odômetro voltando (módulo comprometido) e uma assinatura falsa
+  async iot() {
+    const d = DISPOSITIVOS[0];
+    const v = VEICULOS_DB.find(x => x.id === d.veiculoId);
+    const chave = await chaveDispositivo(d.id);
+    const kmAtual = ultimaLeitura.has(d.id) ? ultimaLeitura.get(d.id).km : v.km;
+    const agora = () => new Date().toISOString();
+    const enviar = async (km, chaveUsada) => {
+      const m = { device_id: d.id, vin: v.vin, km, ts: agora() };
+      m.assinatura = await assinarTelemetria(m, chaveUsada);
+      return receberTelemetria(m);
+    };
+    const r1 = await enviar(kmAtual + 2, chave);
+    const r2 = await enviar(kmAtual - 1500, chave);
+    const chaveFalsa = await crypto.subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const r3 = await enviar(kmAtual + 4, chaveFalsa);
+    await atualizarInicioSeAberto();
+    const txt = r => (r.aceita ? 'aceita' : `rejeitada (${r.motivo})`);
+    return `Leitura normal: ${txt(r1)}. Odômetro voltando 1.500 km: ${txt(r2)}. Assinatura falsa: ${txt(r3)}.`;
+  },
+  // ML: muitas leituras seguidas dos leads, abaixo do rate limit
+  async massa() {
+    let ok = 0;
+    for (let i = 0; i < 12; i++) {
+      const r = await api('GET', '/v1/analytics/leads', sessao.token);
+      if (r.status === 200) ok += 1;
+    }
+    return `12 consultas seguidas a /v1/analytics/leads: ${ok} respondidas. O rate limit não barrou (cada requisição é válida), mas o volume disparou o alerta de extração em massa.`;
   }
 };
 
@@ -1462,6 +1522,11 @@ const PERMISSOES = {
 };
 
 function autorizar(payload, permissao, rota) {
+  const suspensas = SUSPENSOES.get(payload.sub); // seção 25: suspensão aplicada na contenção de um incidente
+  if (suspensas && suspensas.has(permissao)) {
+    Log.registrar('access.denied_suspended', 'WARN', { user_id: payload.sub, route: rota, permission: permissao, reason: 'suspended_by_incident_response', status: 403 });
+    return { status: 403, erro: 'Acesso suspenso pela equipe de segurança.' };
+  }
   if ((PERMISSOES[payload.role] || []).includes(permissao)) return null;
   Log.registrar('access.denied', 'WARN', { user_id: payload.sub, role: payload.role, route: rota, required_permission: permissao, reason: 'perfil_sem_permissao', status: 403 });
   return { status: 403, erro: 'Você não tem permissão para esta ação.' };
@@ -1635,7 +1700,7 @@ function acaoConta(payload, id, acao) {
 }
 
 // Eventos que entram na trilha de auditoria
-const EVENTOS_AUDITORIA = /^(auth\.account\.lockout|auth\.login\.(success|failure)|access\.denied|api\.authz\.|api\.auth\.rejected|admin\.|lead\.|appointment\.(created|cancelled)|data\.sensitive\.read|data\.location\.used|privacy\.|storage\.cache\.integrity_fail)/;
+const EVENTOS_AUDITORIA = /^(auth\.account\.lockout|auth\.login\.(success|failure)|access\.denied|api\.authz\.|api\.auth\.rejected|admin\.|lead\.|appointment\.(created|cancelled)|data\.sensitive\.read|data\.location\.used|privacy\.|storage\.cache\.integrity_fail|alert\.|iot\.telemetry\.rejected|ir\.(action|incident)|waf\.)/;
 
 async function rotasGestao(metodo, rota, payload, opcoes) {
   let m;
@@ -2134,7 +2199,7 @@ async function rotasPrivacidade(metodo, rota, payload, opcoes) {
     if (!confere) {
       const r = registrarFalha(u.email);
       Log.registrar('privacy.deletion.reauth_failed', 'WARN', { user_id: u.id, attempts_left: r.restantes, audit: true, status: 403 });
-      if (r.bloqueou) Log.registrar('auth.account.lockout', 'CRITICAL', { user: mascararEmail(u.email), reason: 'brute_force_suspected', threshold: CONFIG.MAX_TENTATIVAS, lock_seconds: CONFIG.BLOQUEIO_MS / 1000 });
+      if (r.bloqueou) Log.registrar('auth.account.lockout', 'CRITICAL', { user: mascararEmail(u.email), account_ref: refConta(u.email), reason: 'brute_force_suspected', threshold: CONFIG.MAX_TENTATIVAS, lock_seconds: CONFIG.BLOQUEIO_MS / 1000 });
       return { status: 403, erro: r.bloqueou ? 'Senha incorreta. Conta bloqueada por 60 segundos.' : `Senha incorreta. Restam ${plural(r.restantes, 'tentativa', 'tentativas')}.` };
     }
     tentativas.delete(u.email);
@@ -2285,7 +2350,751 @@ async function telaExclusao() {
 }
 
 /* =========================================================
-   23. INICIALIZAÇÃO
+   23. MONITORAMENTO: regras de alerta, métricas e painel
+   Cada evento do log passa pelas regras. Quando uma regra atinge o limite
+   dentro da janela de tempo, abre um alerta (incidente) com as evidências.
+   ========================================================= */
+const SEVERIDADES = { critica: 'Crítica', alta: 'Alta', media: 'Média' };
+
+const REGRAS_ALERTA = [
+  { id: 'ALR-01', nome: 'Falhas de login repetidas na mesma conta', dominio: 'Autenticação', severidade: 'media',
+    eventos: ['auth.login.failure'], chave: e => `${e.user} (${e.account_ref})`, limite: 3, janelaMin: 5,
+    acao: 'Acompanhar a conta. O bloqueio automático acontece na 5ª falha.' },
+  { id: 'ALR-02', nome: 'Conta bloqueada por força bruta', dominio: 'Autenticação', severidade: 'alta',
+    eventos: ['auth.account.lockout'], chave: e => `${e.user} (${e.account_ref})`, limite: 1, janelaMin: 60,
+    acao: 'Confirmar com o titular por outro canal, verificar a origem das tentativas e exigir troca de senha se houver login bem-sucedido depois.' },
+  { id: 'ALR-03', nome: 'Password spraying: várias contas a partir da mesma origem', dominio: 'Autenticação', severidade: 'alta',
+    eventos: ['auth.login.failure'], chave: e => e.ip, distinto: e => e.account_ref, limite: 3, janelaMin: 5,
+    acao: 'Bloquear o IP de origem no WAF e revisar os logins bem-sucedidos vindos dele.' },
+  { id: 'ALR-04', nome: 'Token JWT adulterado ou forjado', dominio: 'API', severidade: 'critica',
+    eventos: ['api.auth.rejected'], filtro: e => ['signature_mismatch', 'alg_not_allowed', 'malformed'].includes(e.reason),
+    chave: e => e.ip, limite: 1, janelaMin: 60,
+    acao: 'Tratar como tentativa de invasão. Se houver suspeita de vazamento da chave de assinatura, rotacionar a chave, o que invalida todos os tokens.' },
+  { id: 'ALR-05', nome: 'Acesso a dado de outro cliente (BOLA/IDOR)', dominio: 'API', severidade: 'alta',
+    eventos: ['api.authz.bola_attempt'], chave: e => e.user_id, limite: 1, janelaMin: 60,
+    acao: 'Encerrar as sessões do usuário, revisar os acessos dele nas últimas 24 horas e confirmar que nenhum dado foi devolvido.' },
+  { id: 'ALR-06', nome: 'Tentativas de acesso fora do perfil', dominio: 'API', severidade: 'alta',
+    eventos: ['access.denied'], chave: e => e.user_id, limite: 2, janelaMin: 10,
+    acao: 'Verificar se a conta foi comprometida ou se é abuso interno. Revisar as permissões do perfil.' },
+  { id: 'ALR-07', nome: 'Excesso de requisições (rate limit)', dominio: 'API', severidade: 'media',
+    eventos: ['api.rate_limited'], chave: e => e.user_id, limite: 1, janelaMin: 10,
+    acao: 'Separar bug do app (requisição em loop) de abuso. Se for abuso, bloquear a origem temporariamente.' },
+  { id: 'ALR-08', nome: 'Leitura em massa de leads (extração de dados do modelo)', dominio: 'ML', severidade: 'alta',
+    eventos: ['data.access'], filtro: e => e.route === '/v1/analytics/leads', chave: e => e.user_id, limite: 5, janelaMin: 5,
+    acao: 'Suspender o acesso do usuário ao endpoint de leads e confirmar com o gestor se a demanda é legítima.' },
+  { id: 'ALR-09', nome: 'Perfil de usuário alterado', dominio: 'Administração', severidade: e => (e.to === 'admin' ? 'alta' : 'media'),
+    eventos: ['admin.user.role_changed'], chave: e => e.target_user, limite: 1, janelaMin: 60,
+    acao: 'Confirmar a mudança com o administrador que a fez e com o gestor do usuário. Mudança não autorizada indica conta de admin comprometida.' },
+  { id: 'ALR-10', nome: 'Cache local do app adulterado', dominio: 'Mobile', severidade: 'alta',
+    eventos: ['storage.cache.integrity_fail'], chave: e => e.ip, limite: 1, janelaMin: 60,
+    acao: 'Aparelho possivelmente comprometido (root, jailbreak ou malware). Encerrar as sessões e orientar a reinstalação do app.' },
+  { id: 'ALR-11', nome: 'Telemetria IoT rejeitada', dominio: 'IoT', severidade: 'alta',
+    eventos: ['iot.telemetry.rejected'], chave: e => e.device_id, limite: 1, janelaMin: 30,
+    acao: 'Pôr o módulo telemático em quarentena (parar de aceitar dados dele). Se a assinatura for inválida, revogar a credencial do dispositivo.' },
+  { id: 'ALR-12', nome: 'Exclusão de conta pedida com senha errada', dominio: 'Privacidade', severidade: 'media',
+    eventos: ['privacy.deletion.reauth_failed'], chave: e => e.user_id, limite: 1, janelaMin: 30,
+    acao: 'Possível sessão sequestrada. Avisar o titular por outro canal e encerrar as sessões se houver nova tentativa.' }
+];
+
+const NIVEL_POR_SEVERIDADE = { critica: 'CRITICAL', alta: 'CRITICAL', media: 'WARN' };
+// Eventos gerados pelo lado da segurança não vêm do aparelho: origem própria e sem IP do cliente
+const ORIGEM_MOTOR = { source: 'motor-alertas', ip: undefined };
+const ORIGEM_CONSOLE = { source: 'console-resposta', ip: undefined };
+
+const Monitor = {
+  alertas: [],
+  janelas: new Map(), // "regra|chave" -> [{ t, trace, valor }]
+  seq: 0,
+
+  processar(e) {
+    if (e.event.startsWith('alert.')) return; // alertas não disparam alertas
+    for (const r of REGRAS_ALERTA) {
+      if (!r.eventos.includes(e.event)) continue;
+      if (r.filtro && !r.filtro(e)) continue;
+      const chave = String(r.chave(e) || 'desconhecido');
+      const k = r.id + '|' + chave;
+      const agora = Date.parse(e.timestamp);
+      const janela = (this.janelas.get(k) || []).filter(x => agora - x.t <= r.janelaMin * 60000);
+      janela.push({ t: agora, trace: e.trace_id, valor: r.distinto ? r.distinto(e) : null });
+      this.janelas.set(k, janela);
+      const contagem = r.distinto ? new Set(janela.map(x => x.valor)).size : janela.length;
+      if (contagem < r.limite) continue;
+
+      // Já existe alerta aberto para a mesma regra e chave: soma a ocorrência (deduplicação)
+      const aberto = this.alertas.find(a => a.regra === r.id && a.chave === chave && alertaAberto(a));
+      if (aberto) {
+        aberto.ocorrencias += 1;
+        aberto.ultimo = e.timestamp;
+        if (aberto.evidencias.length < 10) aberto.evidencias.push(e.trace_id);
+        continue;
+      }
+      const severidade = typeof r.severidade === 'function' ? r.severidade(e) : r.severidade;
+      this.seq += 1;
+      const alerta = {
+        id: 'INC-' + String(this.seq).padStart(4, '0'), regra: r.id, nome: r.nome, dominio: r.dominio, severidade, chave,
+        primeiro: new Date(janela[0].t).toISOString(), ultimo: e.timestamp, ocorrencias: janela.length,
+        evidencias: janela.slice(-10).map(x => x.trace), acao: r.acao, status: 'aberto',
+        // Campos do evento que as ações de resposta precisam (sem dado pessoal em claro)
+        contexto: { user_id: e.user_id, user: e.user, account_ref: e.account_ref, ip: e.ip, device_id: e.device_id,
+                    target_user: e.target_user, from: e.from, to: e.to, reason: e.reason },
+        resposta: { passos: {}, fases: {}, classificacao: null, encerradoEm: null }
+      };
+      this.alertas.unshift(alerta);
+      Log.registrar('alert.triggered', NIVEL_POR_SEVERIDADE[severidade], {
+        ...ORIGEM_MOTOR, alert_id: alerta.id, rule_id: r.id, severity: severidade, domain: r.dominio, key: chave, occurrences: alerta.ocorrencias
+      });
+    }
+    desenharAlertas();
+    agendarPainel();
+  }
+};
+
+// --- Lista de alertas
+const hora = iso => new Date(iso).toLocaleTimeString('pt-BR');
+
+function desenharAlertas() {
+  const alvo = document.getElementById('listaAlertas');
+  if (!alvo) return;
+  const abertos = Monitor.alertas.filter(alertaAberto).length;
+  const badge = document.getElementById('badgeAlertas');
+  badge.textContent = String(abertos);
+  badge.hidden = abertos === 0;
+
+  const rolagem = alvo.scrollTop;
+  if (incidenteAberto) {
+    const inc = Monitor.alertas.find(x => x.id === incidenteAberto);
+    if (inc) { desenharIncidente(alvo, inc); alvo.scrollTop = rolagem; return; }
+    incidenteAberto = null;
+  }
+  alvo.innerHTML = '';
+  if (!Monitor.alertas.length) {
+    alvo.append(el('p', { class: 'empty' }, 'Nenhum alerta. Rode uma simulação na aba Ataques para ver as regras disparando.'));
+    return;
+  }
+  Monitor.alertas.forEach(a => {
+    alvo.append(el('article', { class: 'alerta sev-' + a.severidade },
+      el('div', { class: 'alerta-topo' },
+        el('span', { class: 'alerta-id' }, a.id),
+        el('span', { class: 'sev ' + a.severidade }, SEVERIDADES[a.severidade]),
+        el('span', { class: 'estado st-' + a.status }, STATUS_INCIDENTE[a.status])),
+      el('h4', {}, a.nome),
+      el('p', { class: 'meta' }, `${a.regra}, domínio ${a.dominio}, chave ${a.chave}`),
+      el('p', { class: 'meta' }, `${plural(a.ocorrencias, 'ocorrência', 'ocorrências')}, de ${hora(a.primeiro)} a ${hora(a.ultimo)}`),
+      el('p', { class: 'acao' }, el('strong', {}, 'Ação recomendada: '), a.acao),
+      el('p', { class: 'evid' }, 'Evidências (trace_id): ' + a.evidencias.map(t => t.slice(0, 8)).join(', ')),
+      el('div', { class: 'alerta-rodape' },
+        el('button', { type: 'button', class: 'btn-sm' + (alertaAberto(a) ? '' : ' ghost'),
+          onclick: () => { incidenteAberto = a.id; desenharAlertas(); alvo.scrollTop = 0; } },
+          alertaAberto(a) ? 'Responder' : 'Ver resposta'))));
+  });
+  alvo.scrollTop = rolagem;
+}
+
+// --- Painel de métricas (janela dos últimos 15 minutos)
+const JANELA_PAINEL_MIN = 15;
+let painelAgendado = false;
+function agendarPainel() {
+  if (painelAgendado) return;
+  painelAgendado = true;
+  requestAnimationFrame(() => { painelAgendado = false; desenharPainel(); });
+}
+
+function dominioDoEvento(e) {
+  const ev = e.event;
+  if (ev.startsWith('iot.')) return 'IoT';
+  if (ev.startsWith('lead.') || (ev === 'data.access' && String(e.route || '').startsWith('/v1/analytics'))) return 'ML e análise';
+  if (ev.startsWith('auth.')) return 'Autenticação';
+  if (ev.startsWith('storage.') || ev === 'app.start') return 'Mobile';
+  if (ev.startsWith('privacy.') || ev === 'data.sensitive.read' || ev === 'data.location.used') return 'Privacidade';
+  if (ev.startsWith('admin.')) return 'Administração';
+  if (ev.startsWith('alert.')) return 'Alertas';
+  if (ev.startsWith('ir.')) return 'Resposta a incidentes';
+  return 'API';
+}
+
+function desenharPainel() {
+  const alvo = document.getElementById('painelMetricas');
+  if (!alvo || document.getElementById('viewPainel').hidden) return;
+  const agora = Date.now();
+  const recentes = Log.itens.filter(e => agora - Date.parse(e.timestamp) <= JANELA_PAINEL_MIN * 60000);
+  const conta = f => recentes.filter(f).length;
+  const abertos = Monitor.alertas.filter(alertaAberto);
+
+  const kpis = [
+    ['Eventos', recentes.length, ''],
+    ['Logins com falha', conta(e => e.event === 'auth.login.failure'), 'warn'],
+    ['Acessos negados (401/403)', conta(e => e.status === 401 || e.status === 403), 'warn'],
+    ['Bloqueios por limite (429)', conta(e => e.event === 'api.rate_limited'), 'warn'],
+    ['Telemetria rejeitada', conta(e => e.event === 'iot.telemetry.rejected'), 'warn'],
+    ['Alertas abertos', abertos.length, abertos.some(a => a.severidade !== 'media') ? 'bad' : '']
+  ];
+
+  // Linha do tempo: eventos por minuto, empilhados por nível
+  const buckets = Array.from({ length: JANELA_PAINEL_MIN }, () => ({ INFO: 0, WARN: 0, CRITICAL: 0 }));
+  recentes.forEach(e => {
+    const idx = JANELA_PAINEL_MIN - 1 - Math.floor((agora - Date.parse(e.timestamp)) / 60000);
+    if (idx >= 0 && idx < JANELA_PAINEL_MIN) buckets[idx][e.level in buckets[idx] ? e.level : 'INFO'] += 1;
+  });
+  const max = Math.max(1, ...buckets.map(b => b.INFO + b.WARN + b.CRITICAL));
+  const W = 600, H = 150, larg = W / JANELA_PAINEL_MIN;
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H + 22}`);
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', 'Eventos por minuto nos últimos 15 minutos');
+  buckets.forEach((b, i) => {
+    let y = H;
+    [['INFO', 'var(--ok)'], ['WARN', 'var(--signal)'], ['CRITICAL', 'var(--danger)']].forEach(([nivel, cor]) => {
+      const h = (b[nivel] / max) * (H - 10);
+      if (!h) return;
+      y -= h;
+      const r = document.createElementNS(svgNS, 'rect');
+      r.setAttribute('x', String(i * larg + 4)); r.setAttribute('y', String(y));
+      r.setAttribute('width', String(larg - 8)); r.setAttribute('height', String(h));
+      r.setAttribute('rx', '2'); r.setAttribute('fill', cor);
+      svg.appendChild(r);
+    });
+  });
+  [[0, `-${JANELA_PAINEL_MIN} min`], [W, 'agora']].forEach(([x, texto]) => {
+    const t = document.createElementNS(svgNS, 'text');
+    t.setAttribute('x', String(x)); t.setAttribute('y', String(H + 16));
+    t.setAttribute('text-anchor', x ? 'end' : 'start'); t.setAttribute('class', 'eixo');
+    t.textContent = texto;
+    svg.appendChild(t);
+  });
+
+  const porDominio = {};
+  recentes.forEach(e => { const d = dominioDoEvento(e); porDominio[d] = (porDominio[d] || 0) + 1; });
+  const porEvento = {};
+  recentes.forEach(e => { porEvento[e.event] = (porEvento[e.event] || 0) + 1; });
+  const barrasDe = obj => {
+    const itens = Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, 7);
+    const topo = Math.max(1, ...itens.map(x => x[1]));
+    return itens.length
+      ? el('ul', { class: 'mini-barras' }, itens.map(([k, v]) => el('li', {},
+          el('span', { class: 'rot' }, k), el('span', { class: 'num' }, String(v)),
+          el('span', { class: 'trilho' }, el('span', { style: `width:${(v / topo) * 100}%` })))))
+      : el('p', { class: 'empty' }, 'Sem eventos na janela.');
+  };
+
+  alvo.innerHTML = '';
+  alvo.append(
+    el('p', { class: 'painel-sub' }, `Últimos ${JANELA_PAINEL_MIN} minutos, atualizado em tempo real`),
+    el('div', { class: 'kpis' }, kpis.map(([rot, val, cls]) => el('div', { class: 'kpi-card ' + cls }, el('b', {}, String(val)), el('span', {}, rot)))),
+    el('section', { class: 'painel-bloco' }, el('h4', {}, 'Eventos por minuto'), svg,
+      el('div', { class: 'legenda' },
+        el('span', { class: 'l-info' }, 'INFO'), el('span', { class: 'l-warn' }, 'WARN'), el('span', { class: 'l-crit' }, 'CRITICAL'))),
+    el('div', { class: 'painel-duplo' },
+      el('section', { class: 'painel-bloco' }, el('h4', {}, 'Por domínio'), barrasDe(porDominio)),
+      el('section', { class: 'painel-bloco' }, el('h4', {}, 'Eventos mais frequentes'), barrasDe(porEvento))),
+    el('section', { class: 'painel-bloco' }, el('h4', {}, 'Alertas abertos por severidade'),
+      el('div', { class: 'sev-linha' }, Object.keys(SEVERIDADES).map(s =>
+        el('span', { class: 'sev ' + s }, `${SEVERIDADES[s]}: ${abertos.filter(a => a.severidade === s).length}`)))));
+}
+setInterval(agendarPainel, 30000); // a janela de 15 min anda mesmo sem eventos novos
+
+/* =========================================================
+   24. INGESTÃO DE TELEMETRIA IoT (módulo telemático do veículo -> broker MQTT/TLS -> API)
+   Cada mensagem é assinada com HMAC pela chave do dispositivo.
+   A API confere assinatura, VIN, horário (anti-replay) e coerência do odômetro.
+   ========================================================= */
+const DISPOSITIVOS = [
+  { id: 'tcu-5001', veiculoId: 'v-5001' },
+  { id: 'tcu-5002', veiculoId: 'v-5002' }
+];
+// No veículo real, a chave fica no elemento seguro do módulo telemático e nunca sai dele
+const chavesDispositivos = new Map();
+const ultimaLeitura = new Map();
+const CAMPOS_TELEMETRIA = ['device_id', 'vin', 'km', 'ts', 'assinatura'];
+const IP_BROKER = '10.20.0.15';
+
+async function chaveDispositivo(id) {
+  if (!chavesDispositivos.has(id))
+    chavesDispositivos.set(id, await crypto.subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']));
+  return chavesDispositivos.get(id);
+}
+const mensagemCanonica = m => `${m.device_id}|${m.vin}|${m.km}|${m.ts}`;
+async function assinarTelemetria(m, chave) {
+  return b64url(await crypto.subtle.sign('HMAC', chave, enc.encode(mensagemCanonica(m))));
+}
+
+async function receberTelemetria(m) {
+  const base = { source: 'broker-mqtt', ip: IP_BROKER };
+  const rejeitar = (motivo, extra = {}) => {
+    Log.registrar('iot.telemetry.rejected', 'WARN', { ...base, device_id: (m && m.device_id) || 'desconhecido', reason: motivo, ...extra });
+    return { aceita: false, motivo };
+  };
+  // 1) Esquema: só os campos esperados, com os tipos certos
+  if (!m || typeof m !== 'object' || Object.keys(m).some(k => !CAMPOS_TELEMETRIA.includes(k)) ||
+      typeof m.device_id !== 'string' || typeof m.vin !== 'string' || !Number.isFinite(m.km) || typeof m.ts !== 'string' || typeof m.assinatura !== 'string')
+    return rejeitar('invalid_schema');
+  // 2) Dispositivo provisionado?
+  const d = DISPOSITIVOS.find(x => x.id === m.device_id);
+  if (!d) return rejeitar('unknown_device');
+  if (QUARENTENA.has(d.id)) { // contenção de incidente: dados do dispositivo ignorados até a análise
+    Log.registrar('iot.telemetry.quarantined', 'INFO', { ...base, device_id: d.id, reason: 'device_in_quarantine' });
+    return { aceita: false, motivo: 'quarentena' };
+  }
+  const v = VEICULOS_DB.find(x => x.id === d.veiculoId);
+  // 3) Assinatura HMAC do dispositivo
+  let assinaturaOk = false;
+  try { assinaturaOk = await crypto.subtle.verify('HMAC', await chaveDispositivo(d.id), b64urlParaBytes(m.assinatura), enc.encode(mensagemCanonica(m))); }
+  catch { assinaturaOk = false; }
+  if (!assinaturaOk) return rejeitar('invalid_signature');
+  // 4) O VIN precisa ser o do veículo em que o dispositivo foi instalado
+  if (m.vin !== v.vin) return rejeitar('vin_mismatch');
+  // 5) Anti-replay: horário dentro de 5 minutos
+  if (!(Math.abs(Date.now() - Date.parse(m.ts)) <= 5 * 60000)) return rejeitar('timestamp_out_of_window');
+  // 6) Coerência física: odômetro não volta e não salta
+  const anterior = ultimaLeitura.get(d.id) || { km: v.km, ts: v.telemetriaEm };
+  if (m.km < anterior.km) return rejeitar('odometer_rollback', { km_previous: anterior.km, km_received: m.km });
+  const horas = Math.max((Date.parse(m.ts) - Date.parse(anterior.ts)) / 3600000, 1 / 60);
+  if ((m.km - anterior.km) / horas > 250) return rejeitar('implausible_speed', { km_delta: m.km - anterior.km });
+  // 7) LGPD: sem consentimento de telemetria, a leitura é descartada
+  if (!consentimentosDe(v.ownerId).telemetria) {
+    Log.registrar('iot.telemetry.discarded', 'INFO', { ...base, device_id: d.id, reason: 'no_consent' });
+    return { aceita: false, motivo: 'sem_consentimento' };
+  }
+  v.km = m.km;
+  v.telemetriaEm = m.ts;
+  ultimaLeitura.set(d.id, { km: m.km, ts: m.ts });
+  Log.registrar('iot.telemetry.accepted', 'INFO', { ...base, device_id: d.id, vehicle_id: v.id, km_delta: m.km - anterior.km, channel: 'mqtts' });
+  return { aceita: true };
+}
+
+/* =========================================================
+   25. RESPOSTA A INCIDENTES (SANS PICERL)
+   Preparação -> Identificação -> Contenção -> Erradicação -> Recuperação.
+   Cada regra de alerta aponta para um playbook. As ações de contenção agem de verdade no sistema.
+   ========================================================= */
+const FASES = [
+  ['preparacao', 'Preparação'], ['identificacao', 'Identificação'], ['contencao', 'Contenção'],
+  ['erradicacao', 'Erradicação'], ['recuperacao', 'Recuperação']
+];
+const STATUS_INCIDENTE = {
+  aberto: 'Aberto', analise: 'Em análise', contido: 'Contido', erradicado: 'Erradicado',
+  resolvido: 'Resolvido', falso_positivo: 'Falso positivo'
+};
+function alertaAberto(a) { return a.status !== 'resolvido' && a.status !== 'falso_positivo'; }
+let incidenteAberto = null;
+
+// --- Estado das contenções (lido pela API, pelo login e pela ingestão IoT)
+const IPS_BLOQUEADOS = new Map(); // ip -> bloqueado até (ms)
+const SUSPENSOES = new Map();     // userId -> Set(permissões suspensas)
+const QUARENTENA = new Set();     // dispositivos IoT em quarentena
+function ipBloqueado(ip = IP_ORIGEM) {
+  const ate = IPS_BLOQUEADOS.get(ip);
+  return Boolean(ate && ate > Date.now());
+}
+async function conferirSessaoAtual() {
+  if (sessao && !(await verificarToken(sessao.token))) encerrarSessao('seguranca');
+}
+function usuarioDoAlerta(a) {
+  if (a.regra === 'ALR-03') return null; // spraying: o alvo é a origem, não uma conta
+  const c = a.contexto;
+  if (c.account_ref) return USUARIOS.find(u => refConta(u.email) === c.account_ref) || null;
+  if (c.user_id) return USUARIOS.find(u => u.id === c.user_id) || null;
+  return null;
+}
+const nomeConta = u => (u ? mascararEmail(u.email) : 'conta não identificada');
+
+// --- Ações de resposta (cada uma fica registrada no log com o id do incidente)
+const Contencao = {
+  registrar(a, acao, alvo, extra = {}) {
+    Log.registrar('ir.action.executed', 'WARN', { ...ORIGEM_CONSOLE, incident_id: a.id, action: acao, target: alvo, ...extra });
+  },
+  async bloquearIp(a, ip, min = 30) {
+    IPS_BLOQUEADOS.set(ip, Date.now() + min * 60000);
+    this.registrar(a, 'block_ip', ip, { minutes: min });
+    if (sessao && ip === IP_ORIGEM) encerrarSessao('seguranca');
+    return `Origem ${ip} bloqueada por ${min} minutos. Login e API recusam qualquer requisição dela.`;
+  },
+  async liberarIp(a, ip) {
+    IPS_BLOQUEADOS.delete(ip);
+    this.registrar(a, 'unblock_ip', ip);
+    return `Origem ${ip} liberada.`;
+  },
+  async bloquearConta(a, u, min = 30) {
+    tentativas.set(u.email, { falhas: 0, bloqueadoAte: Date.now() + min * 60000 });
+    u.versaoToken += 1;
+    this.registrar(a, 'block_account', u.id, { minutes: min });
+    await conferirSessaoAtual();
+    return `Conta ${nomeConta(u)} bloqueada por ${min} minutos e sessões encerradas.`;
+  },
+  async liberarConta(a, u) {
+    tentativas.delete(u.email);
+    this.registrar(a, 'unblock_account', u.id);
+    return `Conta ${nomeConta(u)} liberada.`;
+  },
+  async encerrarSessoes(a, u) {
+    u.versaoToken += 1;
+    this.registrar(a, 'revoke_sessions', u.id);
+    await conferirSessaoAtual();
+    return `Sessões de ${nomeConta(u)} encerradas. O próximo acesso exige login.`;
+  },
+  async suspender(a, userId, permissao) {
+    if (!SUSPENSOES.has(userId)) SUSPENSOES.set(userId, new Set());
+    SUSPENSOES.get(userId).add(permissao);
+    this.registrar(a, 'suspend_permission', userId, { permission: permissao });
+    return `Permissão ${permissao} suspensa para ${userId}.`;
+  },
+  async restaurar(a, userId, permissao) {
+    if (SUSPENSOES.has(userId)) SUSPENSOES.get(userId).delete(permissao);
+    this.registrar(a, 'restore_permission', userId, { permission: permissao });
+    return `Permissão ${permissao} devolvida para ${userId}.`;
+  },
+  async quarentena(a, id) {
+    QUARENTENA.add(id);
+    this.registrar(a, 'quarantine_device', id);
+    return `Dispositivo ${id} em quarentena. A API passa a descartar os dados dele.`;
+  },
+  async liberarQuarentena(a, id) {
+    QUARENTENA.delete(id);
+    this.registrar(a, 'release_device', id);
+    return `Dispositivo ${id} fora da quarentena.`;
+  },
+  async reprovisionar(a, id) {
+    chavesDispositivos.delete(id);
+    await chaveDispositivo(id);
+    ultimaLeitura.delete(id);
+    this.registrar(a, 'rotate_device_credential', id);
+    return `Credencial de ${id} revogada e chave nova gerada. Mensagens assinadas com a chave antiga passam a ser recusadas.`;
+  },
+  async rotacionarJWT(a) {
+    chaveJWTAnterior = chaveJWT;
+    await iniciarChaveJWT();
+    this.registrar(a, 'rotate_jwt_key', 'api');
+    if (sessao) encerrarSessao('seguranca');
+    return 'Chave de assinatura do JWT rotacionada. Todos os tokens anteriores foram invalidados; os usuários precisam entrar de novo.';
+  },
+  async reverterPerfil(a, u, perfil) {
+    const antes = u.perfil;
+    u.perfil = perfil;
+    u.versaoToken += 1;
+    this.registrar(a, 'revert_role', u.id, { from: antes, to: perfil });
+    await conferirSessaoAtual();
+    return `Perfil de ${u.nome} revertido de ${PERFIS[antes].rotulo} para ${PERFIS[perfil].rotulo}.`;
+  },
+  async limparAparelho(a) {
+    CacheSeguro.limpar();
+    this.registrar(a, 'wipe_device_cache', 'aparelho');
+    if (sessao) encerrarSessao('seguranca');
+    return 'Cache local apagado e sessão do aparelho encerrada.';
+  }
+};
+
+// --- Consultas usadas na Identificação
+function resumoPorEvento(filtro) {
+  const cont = {};
+  Log.itens.filter(filtro).forEach(e => { cont[e.event] = (cont[e.event] || 0) + 1; });
+  const itens = Object.entries(cont).sort((x, y) => y[1] - x[1]);
+  return itens.length ? itens.map(([ev, n]) => `${n}× ${ev}`).join(', ') : 'nenhum evento';
+}
+
+// --- Preparação: o que já existe antes de qualquer incidente
+const PREPARACAO_COMUM = [
+  'Logs estruturados em JSON, com trace_id, em todos os eventos de segurança (seção 3).',
+  '12 regras de alerta avaliadas em tempo real, com deduplicação (seção 23).',
+  'Ações de contenção prontas neste console: bloquear origem ou conta, encerrar sessões, suspender permissão, quarentena de dispositivo e rotação de chaves.',
+  'Papéis definidos: analista de plantão conduz, dono do sistema aprova mudanças, DPO avalia comunicação à ANPD e aos titulares.'
+];
+
+const decisao = (opcoes) => ({ id: 'id-classificar', fase: 'identificacao', tipo: 'decisao', texto: 'Classificar o alerta', opcoes });
+
+const PLAYBOOKS = {
+  'PB-01': {
+    nome: 'Ataque a credenciais', regras: ['ALR-01', 'ALR-02', 'ALR-03', 'ALR-12'],
+    preparacao: ['Bloqueio automático após 5 falhas; mensagem de erro que não revela se o e-mail existe.'],
+    passos: [
+      { id: 'id-eventos', fase: 'identificacao', tipo: 'check', texto: 'Revisar os eventos relacionados: quantas contas, quantas tentativas e de qual origem.' },
+      { id: 'id-sucesso', fase: 'identificacao', tipo: 'acao', texto: 'Procurar login bem-sucedido da mesma origem depois das falhas',
+        executar: async a => {
+          const n = Log.itens.filter(e => e.event === 'auth.login.success' && e.ip === a.contexto.ip && Date.parse(e.timestamp) >= Date.parse(a.primeiro)).length;
+          return n ? `${plural(n, 'login com sucesso', 'logins com sucesso')} da mesma origem depois das falhas. Verificar se foram do titular.` : 'Nenhum login com sucesso da mesma origem depois das falhas.';
+        } },
+      decisao(),
+      { id: 'ct-conta', fase: 'contencao', tipo: 'acao', se: a => Boolean(usuarioDoAlerta(a)),
+        texto: a => `Bloquear a conta ${nomeConta(usuarioDoAlerta(a))} por 30 minutos e encerrar as sessões`,
+        executar: a => Contencao.bloquearConta(a, usuarioDoAlerta(a)) },
+      { id: 'ct-ip', fase: 'contencao', tipo: 'acao', se: a => a.regra === 'ALR-03', perigo: true,
+        texto: a => `Bloquear a origem ${a.contexto.ip} por 30 minutos`, executar: a => Contencao.bloquearIp(a, a.contexto.ip) },
+      { id: 'er-titular', fase: 'erradicacao', tipo: 'check', texto: 'Confirmar com o titular por outro canal (e-mail ou SMS) e exigir troca de senha no próximo login.' },
+      { id: 'er-waf', fase: 'erradicacao', tipo: 'check', se: a => a.regra === 'ALR-03', texto: 'Se a origem for externa, incluí-la de forma permanente na lista de bloqueio do WAF.' },
+      { id: 'rc-conta', fase: 'recuperacao', tipo: 'acao', se: a => Boolean(usuarioDoAlerta(a)),
+        texto: a => `Liberar a conta ${nomeConta(usuarioDoAlerta(a))} depois da confirmação do titular`, executar: a => Contencao.liberarConta(a, usuarioDoAlerta(a)) },
+      { id: 'rc-ip', fase: 'recuperacao', tipo: 'acao', se: a => a.regra === 'ALR-03',
+        texto: a => `Liberar a origem ${a.contexto.ip}`, executar: a => Contencao.liberarIp(a, a.contexto.ip) },
+      { id: 'rc-observar', fase: 'recuperacao', tipo: 'check', texto: 'Manter a conta em observação por 24 horas (a regra ALR-01 continua ativa).' }
+    ]
+  },
+  'PB-02': {
+    nome: 'Token JWT forjado', regras: ['ALR-04'],
+    preparacao: ['A API confere assinatura, algoritmo, validade e versão de cada token (seção 7).'],
+    passos: [
+      { id: 'id-eventos', fase: 'identificacao', tipo: 'check', texto: 'Revisar o motivo da recusa (assinatura inválida ou algoritmo não permitido) e a origem.' },
+      { id: 'id-aceito', fase: 'identificacao', tipo: 'acao', texto: 'Verificar se algum token adulterado foi aceito',
+        executar: async a => `Recusas desta origem: ${resumoPorEvento(e => e.event === 'api.auth.rejected' && e.ip === a.contexto.ip)}. Nenhuma requisição com token adulterado passou da autenticação.` },
+      decisao(),
+      { id: 'ct-ip', fase: 'contencao', tipo: 'acao', perigo: true, texto: a => `Bloquear a origem ${a.contexto.ip} por 30 minutos`,
+        executar: a => Contencao.bloquearIp(a, a.contexto.ip) },
+      { id: 'er-vazamento', fase: 'erradicacao', tipo: 'check', texto: 'Verificar se a chave de assinatura pode ter vazado (rodar o Trufflehog no repositório e revisar variáveis de ambiente).' },
+      { id: 'er-chave', fase: 'erradicacao', tipo: 'acao', perigo: true, texto: 'Rotacionar a chave de assinatura do JWT (todos os usuários precisam entrar de novo)',
+        executar: a => Contencao.rotacionarJWT(a) },
+      { id: 'rc-ip', fase: 'recuperacao', tipo: 'acao', texto: a => `Liberar a origem ${a.contexto.ip}`, executar: a => Contencao.liberarIp(a, a.contexto.ip) },
+      { id: 'rc-login', fase: 'recuperacao', tipo: 'check', texto: 'Confirmar que os usuários legítimos entram normalmente com tokens novos.' }
+    ]
+  },
+  'PB-03': {
+    nome: 'Acesso indevido a dados', regras: ['ALR-05', 'ALR-06', 'ALR-08'],
+    preparacao: ['RBAC com menor privilégio e checagem de dono em cada recurso; leads pseudoanonimizados.'],
+    passos: [
+      { id: 'id-eventos', fase: 'identificacao', tipo: 'check', texto: 'Revisar os eventos relacionados: que recurso foi pedido e qual resposta a API deu.' },
+      { id: 'id-historico', fase: 'identificacao', tipo: 'acao', texto: 'Levantar tudo o que o usuário fez na última hora',
+        executar: async a => `Atividade de ${a.contexto.user_id} na última hora: ${resumoPorEvento(e => e.user_id === a.contexto.user_id && Date.now() - Date.parse(e.timestamp) <= 3600000)}.` },
+      decisao(),
+      { id: 'ct-sessoes', fase: 'contencao', tipo: 'acao', se: a => Boolean(usuarioDoAlerta(a)),
+        texto: a => `Encerrar as sessões de ${nomeConta(usuarioDoAlerta(a))}`, executar: a => Contencao.encerrarSessoes(a, usuarioDoAlerta(a)) },
+      { id: 'ct-suspender', fase: 'contencao', tipo: 'acao', se: a => a.regra === 'ALR-08',
+        texto: 'Suspender a permissão de leitura de leads (leads:ler)', executar: a => Contencao.suspender(a, a.contexto.user_id, 'leads:ler') },
+      { id: 'er-gestor', fase: 'erradicacao', tipo: 'check', texto: 'Confirmar com o gestor se a conta foi comprometida ou se é abuso interno. Se foi comprometida, exigir troca de senha.' },
+      { id: 'er-lgpd', fase: 'erradicacao', tipo: 'check', texto: 'Com o DPO, avaliar se dados pessoais foram expostos e se é preciso comunicar a ANPD e os titulares (LGPD, art. 48).' },
+      { id: 'rc-restaurar', fase: 'recuperacao', tipo: 'acao', se: a => a.regra === 'ALR-08',
+        texto: 'Devolver a permissão depois da autorização do gestor', executar: a => Contencao.restaurar(a, a.contexto.user_id, 'leads:ler') },
+      { id: 'rc-observar', fase: 'recuperacao', tipo: 'check', texto: 'Manter o usuário em observação por 7 dias.' }
+    ]
+  },
+  'PB-04': {
+    nome: 'Alteração de privilégio', regras: ['ALR-09'],
+    preparacao: ['Toda mudança de perfil fica na trilha de auditoria e derruba as sessões do usuário alterado.'],
+    passos: [
+      { id: 'id-eventos', fase: 'identificacao', tipo: 'check', texto: 'Conferir quem alterou, qual conta e de qual perfil para qual.' },
+      decisao({ vp: 'Mudança não autorizada', fp: 'Mudança autorizada (encerrar)' }),
+      { id: 'ct-reverter', fase: 'contencao', tipo: 'acao',
+        texto: a => `Reverter ${a.contexto.target_user} para o perfil anterior (${PERFIS[a.contexto.from] ? PERFIS[a.contexto.from].rotulo : a.contexto.from})`,
+        executar: a => Contencao.reverterPerfil(a, USUARIOS.find(u => u.id === a.contexto.target_user), a.contexto.from) },
+      { id: 'ct-admin', fase: 'contencao', tipo: 'acao', perigo: true, texto: a => `Encerrar as sessões do administrador que fez a mudança (${a.contexto.user_id})`,
+        executar: a => Contencao.encerrarSessoes(a, USUARIOS.find(u => u.id === a.contexto.user_id)) },
+      { id: 'er-admin', fase: 'erradicacao', tipo: 'check', texto: 'Trocar a senha do administrador e revisar as outras ações dele na trilha de auditoria.' },
+      { id: 'rc-perfil', fase: 'recuperacao', tipo: 'check', texto: 'Confirmar com o gestor o perfil correto e registrar a aprovação.' }
+    ]
+  },
+  'PB-05': {
+    nome: 'Abuso de API', regras: ['ALR-07'],
+    preparacao: ['Rate limit de 30 requisições por minuto por usuário, com resposta 429.'],
+    passos: [
+      { id: 'id-eventos', fase: 'identificacao', tipo: 'check', texto: 'Separar bug do app (requisição em loop) de abuso deliberado.' },
+      decisao(),
+      { id: 'ct-conta', fase: 'contencao', tipo: 'acao', se: a => Boolean(usuarioDoAlerta(a)),
+        texto: a => `Suspender ${nomeConta(usuarioDoAlerta(a))} por 30 minutos`, executar: a => Contencao.bloquearConta(a, usuarioDoAlerta(a)) },
+      { id: 'er-causa', fase: 'erradicacao', tipo: 'check', texto: 'Se for bug, abrir correção no app; se for abuso, manter o bloqueio e rever o limite.' },
+      { id: 'rc-conta', fase: 'recuperacao', tipo: 'acao', se: a => Boolean(usuarioDoAlerta(a)),
+        texto: a => `Liberar ${nomeConta(usuarioDoAlerta(a))}`, executar: a => Contencao.liberarConta(a, usuarioDoAlerta(a)) }
+    ]
+  },
+  'PB-06': {
+    nome: 'Aparelho comprometido', regras: ['ALR-10'],
+    preparacao: ['Cache local cifrado com AES-256-GCM: qualquer alteração é detectada pela tag de autenticação.'],
+    passos: [
+      { id: 'id-eventos', fase: 'identificacao', tipo: 'check', texto: 'Conferir o evento de integridade: o cache cifrado foi alterado fora do app.' },
+      decisao(),
+      { id: 'ct-aparelho', fase: 'contencao', tipo: 'acao', perigo: true, texto: 'Apagar o cache do aparelho e encerrar a sessão', executar: a => Contencao.limparAparelho(a) },
+      { id: 'er-reinstalar', fase: 'erradicacao', tipo: 'check', texto: 'Orientar o usuário a remover o app, verificar root ou jailbreak e reinstalar pela loja oficial.' },
+      { id: 'rc-chave', fase: 'recuperacao', tipo: 'check', texto: 'Confirmar o novo login: o app gera uma chave AES nova e recria o cache.' }
+    ]
+  },
+  'PB-07': {
+    nome: 'Telemetria IoT adulterada', regras: ['ALR-11'],
+    preparacao: ['Mensagens assinadas com HMAC pelo módulo telemático, com checagem de VIN, horário e odômetro.'],
+    passos: [
+      { id: 'id-eventos', fase: 'identificacao', tipo: 'check', texto: 'Conferir os motivos da rejeição (assinatura inválida, odômetro voltando, VIN diferente).' },
+      { id: 'id-leituras', fase: 'identificacao', tipo: 'acao', texto: 'Levantar as leituras do dispositivo',
+        executar: async a => `Leituras de ${a.contexto.device_id}: ${resumoPorEvento(e => e.device_id === a.contexto.device_id && e.event.startsWith('iot.'))}.` },
+      decisao(),
+      { id: 'ct-quarentena', fase: 'contencao', tipo: 'acao', texto: a => `Pôr o módulo ${a.contexto.device_id} em quarentena`,
+        executar: a => Contencao.quarentena(a, a.contexto.device_id) },
+      { id: 'er-credencial', fase: 'erradicacao', tipo: 'acao', texto: 'Revogar a credencial do dispositivo e gerar uma chave nova (após inspeção na concessionária)',
+        executar: a => Contencao.reprovisionar(a, a.contexto.device_id) },
+      { id: 'er-km', fase: 'erradicacao', tipo: 'check', texto: 'Corrigir a quilometragem do veículo com a leitura do painel feita na concessionária.' },
+      { id: 'rc-liberar', fase: 'recuperacao', tipo: 'acao', texto: a => `Retirar ${a.contexto.device_id} da quarentena`,
+        executar: a => Contencao.liberarQuarentena(a, a.contexto.device_id) },
+      { id: 'rc-observar', fase: 'recuperacao', tipo: 'check', texto: 'Acompanhar as leituras do dispositivo por 24 horas.' }
+    ]
+  }
+};
+
+function playbookDo(a) { return Object.entries(PLAYBOOKS).find(([, pb]) => pb.regras.includes(a.regra)); }
+function passosDaFase(a, fase) {
+  const [, pb] = playbookDo(a);
+  return pb.passos.filter(p => p.fase === fase && (!p.se || p.se(a)));
+}
+function faseConcluida(a, fase) {
+  if (fase === 'preparacao') return true;
+  const passos = passosDaFase(a, fase);
+  return passos.length > 0 && passos.every(p => a.resposta.passos[p.id]);
+}
+function faseAtual(a) {
+  if (!alertaAberto(a)) return null;
+  const f = FASES.find(([id]) => !faseConcluida(a, id));
+  return f ? f[0] : null;
+}
+function segundosAte(a, iso) { return iso ? Math.round((Date.parse(iso) - Date.parse(a.primeiro)) / 1000) : null; }
+function duracao(seg) {
+  if (seg === null) return 'pendente';
+  const m = Math.floor(seg / 60);
+  return m ? `${m} min ${seg % 60} s` : `${seg} s`;
+}
+
+function atualizarStatus(a) {
+  if (a.resposta.classificacao === 'fp') a.status = 'falso_positivo';
+  else {
+    const mapa = { contencao: 'contido', erradicacao: 'erradicado', recuperacao: 'resolvido' };
+    let st = Object.keys(a.resposta.passos).length ? 'analise' : 'aberto';
+    Object.entries(mapa).forEach(([fase, rot]) => { if (a.resposta.fases[fase]) st = rot; });
+    a.status = st;
+  }
+  if (!alertaAberto(a) && !a.resposta.encerradoEm) {
+    a.resposta.encerradoEm = new Date().toISOString();
+    Log.registrar('ir.incident.closed', 'INFO', {
+      ...ORIGEM_CONSOLE, incident_id: a.id, classification: a.status,
+      time_to_contain_s: segundosAte(a, a.resposta.fases.contencao),
+      time_to_resolve_s: segundosAte(a, a.resposta.encerradoEm)
+    });
+  }
+}
+
+function concluirPasso(a, passo, resultado) {
+  a.resposta.passos[passo.id] = { em: new Date().toISOString(), resultado: resultado || null };
+  Log.registrar('ir.step.completed', 'INFO', { ...ORIGEM_CONSOLE, incident_id: a.id, phase: passo.fase, step: passo.id });
+  if (faseConcluida(a, passo.fase) && !a.resposta.fases[passo.fase]) {
+    a.resposta.fases[passo.fase] = new Date().toISOString();
+    Log.registrar('ir.phase.completed', 'INFO', { ...ORIGEM_CONSOLE, incident_id: a.id, phase: passo.fase });
+  }
+  atualizarStatus(a);
+}
+
+function relatorioIncidente(a) {
+  const [pbId, pb] = playbookDo(a);
+  const passos = FASES.slice(1).flatMap(([fase]) => passosDaFase(a, fase).map(p => {
+    const feito = a.resposta.passos[p.id];
+    return { fase, passo: typeof p.texto === 'function' ? p.texto(a) : p.texto, concluido_em: feito ? feito.em : null, resultado: feito ? feito.resultado : null };
+  }));
+  return {
+    incidente: a.id, regra: a.regra, titulo: a.nome, severidade: a.severidade, dominio: a.dominio, chave: a.chave,
+    playbook: `${pbId} ${pb.nome}`, status: a.status, detectado_em: a.primeiro, ocorrencias: a.ocorrencias,
+    fases_concluidas: a.resposta.fases,
+    metricas: { tempo_ate_contencao_s: segundosAte(a, a.resposta.fases.contencao), tempo_ate_resolucao_s: segundosAte(a, a.resposta.encerradoEm) },
+    passos, evidencias_trace_id: a.evidencias
+  };
+}
+
+// --- Tela do incidente
+function desenharPasso(a, p, ativo) {
+  const feito = a.resposta.passos[p.id];
+  const texto = typeof p.texto === 'function' ? p.texto(a) : p.texto;
+  const linha = el('div', { class: 'passo' + (feito ? ' feito' : '') });
+
+  if (p.tipo === 'check') {
+    const cb = el('input', { type: 'checkbox', id: `${a.id}-${p.id}` });
+    cb.checked = Boolean(feito);
+    cb.disabled = !ativo || Boolean(feito);
+    cb.addEventListener('change', () => { concluirPasso(a, p); desenharAlertas(); });
+    linha.append(el('label', { class: 'passo-check', for: cb.id }, cb, el('span', {}, texto)));
+  } else if (p.tipo === 'acao') {
+    const b = el('button', { type: 'button', class: 'btn-sm' + (p.perigo ? ' perigo' : '') }, feito ? 'Executado' : 'Executar');
+    b.disabled = !ativo || Boolean(feito);
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      b.textContent = 'Executando...';
+      const resultado = await p.executar(a);
+      concluirPasso(a, p, resultado);
+      desenharAlertas();
+    });
+    linha.append(el('div', { class: 'passo-acao' }, el('span', {}, texto), b));
+    if (feito && feito.resultado) linha.append(el('p', { class: 'passo-res' }, feito.resultado));
+  } else {
+    const opcoes = p.opcoes || { vp: 'Verdadeiro positivo', fp: 'Falso positivo (encerrar)' };
+    linha.append(el('span', { class: 'passo-titulo' }, texto));
+    if (feito) {
+      linha.append(el('p', { class: 'passo-res' }, `Classificado como: ${a.resposta.classificacao === 'fp' ? opcoes.fp : opcoes.vp}.`));
+    } else {
+      const escolher = tipo => () => {
+        a.resposta.classificacao = tipo;
+        concluirPasso(a, p, tipo === 'fp' ? opcoes.fp : opcoes.vp);
+        desenharAlertas();
+      };
+      const bVp = el('button', { type: 'button', class: 'btn-sm', onclick: escolher('vp') }, opcoes.vp);
+      const bFp = el('button', { type: 'button', class: 'btn-sm ghost', onclick: escolher('fp') }, opcoes.fp);
+      bVp.disabled = bFp.disabled = !ativo;
+      linha.append(el('div', { class: 'decisao' }, bVp, bFp));
+    }
+  }
+  return linha;
+}
+
+function desenharIncidente(alvo, a) {
+  const [pbId, pb] = playbookDo(a);
+  const atual = faseAtual(a);
+  alvo.innerHTML = '';
+
+  const copiar = el('button', { type: 'button', class: 'btn-sm ghost' }, 'Copiar relatório do incidente');
+  copiar.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(JSON.stringify(relatorioIncidente(a), null, 2)); copiar.textContent = 'Relatório copiado'; }
+    catch { copiar.textContent = 'Não foi possível copiar'; }
+    setTimeout(() => (copiar.textContent = 'Copiar relatório do incidente'), 1800);
+  });
+
+  alvo.append(
+    el('button', { type: 'button', class: 'voltar', onclick: () => { incidenteAberto = null; desenharAlertas(); } }, '← Todos os alertas'),
+    el('section', { class: 'alerta inc-cabecalho sev-' + a.severidade },
+      el('div', { class: 'alerta-topo' },
+        el('span', { class: 'alerta-id' }, a.id),
+        el('span', { class: 'sev ' + a.severidade }, SEVERIDADES[a.severidade]),
+        el('span', { class: 'estado st-' + a.status }, STATUS_INCIDENTE[a.status])),
+      el('h4', {}, a.nome),
+      el('p', { class: 'meta' }, `${a.regra}, domínio ${a.dominio}, chave ${a.chave}`),
+      el('p', { class: 'meta' }, `Playbook ${pbId}: ${pb.nome}`),
+      el('div', { class: 'inc-metricas' },
+        el('div', {}, el('b', {}, hora(a.primeiro)), el('span', {}, 'detectado')),
+        el('div', {}, el('b', {}, duracao(segundosAte(a, a.resposta.fases.contencao))), el('span', {}, 'até a contenção')),
+        el('div', {}, el('b', {}, duracao(segundosAte(a, a.resposta.encerradoEm))), el('span', {}, 'até o encerramento')))));
+
+  FASES.forEach(([fase, nome], i) => {
+    const concluida = fase === 'preparacao' || Boolean(a.resposta.fases[fase]);
+    const naoSeAplica = a.status === 'falso_positivo' && !concluida;
+    const estado = concluida ? 'feita' : naoSeAplica ? 'na' : fase === atual ? 'atual' : 'bloqueada';
+    const rotulo = fase === 'preparacao' ? 'Pronta antes do incidente'
+      : concluida ? `Concluída às ${hora(a.resposta.fases[fase])}`
+      : naoSeAplica ? 'Não se aplica (falso positivo)'
+      : estado === 'atual' ? 'Em andamento' : 'Aguardando a fase anterior';
+    const bloco = el('section', { class: 'fase ' + estado },
+      el('div', { class: 'fase-topo' },
+        el('span', { class: 'fase-num' }, concluida ? '✓' : String(i + 1)),
+        el('h5', {}, nome),
+        el('span', { class: 'fase-estado' }, rotulo)));
+    if (fase === 'preparacao') {
+      const itens = [...PREPARACAO_COMUM, ...pb.preparacao];
+      bloco.append(el('details', { class: 'prep' },
+        el('summary', {}, `O que já estava pronto (${itens.length} itens)`),
+        el('ul', {}, itens.map(t => el('li', {}, t)))));
+    } else {
+      passosDaFase(a, fase).forEach(p => bloco.append(desenharPasso(a, p, estado === 'atual')));
+    }
+    alvo.append(bloco);
+  });
+
+  const eventos = Log.itens.filter(e => a.evidencias.includes(e.trace_id));
+  alvo.append(el('section', { class: 'fase feita' },
+    el('div', { class: 'fase-topo' }, el('h5', {}, 'Eventos relacionados'), el('span', { class: 'fase-estado' }, plural(eventos.length, 'evento', 'eventos'))),
+    eventos.length
+      ? el('ol', { class: 'ev-rel' }, eventos.map(e => el('li', {},
+          el('time', {}, hora(e.timestamp)), el('code', {}, e.event),
+          el('span', {}, [e.reason, e.route, e.device_id, e.status && `status ${e.status}`].filter(Boolean).join(', ')))))
+      : el('p', { class: 'empty' }, 'Os eventos deste alerta foram removidos do painel de logs.')),
+    copiar);
+}
+
+/* =========================================================
+   26. INICIALIZAÇÃO
    ========================================================= */
 function relogio() {
   const d = new Date();
@@ -2303,7 +3112,16 @@ document.getElementById('copyLogs').addEventListener('click', async e => {
   }
   setTimeout(() => (b.textContent = 'Copiar logs'), 1800);
 });
-document.getElementById('clearLogs').addEventListener('click', () => { Log.itens = []; logVazio(); });
+document.getElementById('clearLogs').addEventListener('click', () => { Log.itens = []; logVazio(); agendarPainel(); });
+
+// Abas do centro de segurança
+document.querySelectorAll('[data-aba]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('[data-aba]').forEach(x => x.setAttribute('aria-selected', String(x === b)));
+  const mapa = { ataques: 'viewAtaques', logs: 'viewLogs', alertas: 'viewAlertas', painel: 'viewPainel' };
+  Object.entries(mapa).forEach(([aba, id]) => { document.getElementById(id).hidden = aba !== b.dataset.aba; });
+  if (b.dataset.aba === 'painel') desenharPainel();
+}));
+desenharAlertas();
 
 document.querySelectorAll('[data-sim]').forEach(b => b.addEventListener('click', async () => {
   if (!sessao) return;

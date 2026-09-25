@@ -1,0 +1,182 @@
+[
+  {
+    "descricao": "Login bem-sucedido",
+    "evento": {
+      "timestamp": "2026-09-25T22:26:43.426Z",
+      "level": "INFO",
+      "event": "auth.login.success",
+      "trace_id": "f56eca89-25f6-4f4d-97ed-dc67080a2cac",
+      "source": "app-mobile",
+      "ip": "177.72.14.203",
+      "app_version": "0.7.0",
+      "user_id": "u-2001",
+      "role": "analista",
+      "outcome": "token_issued",
+      "token_ttl_s": 900
+    }
+  },
+  {
+    "descricao": "Falha de autenticação",
+    "evento": {
+      "timestamp": "2026-09-25T22:26:40.030Z",
+      "level": "WARN",
+      "event": "auth.login.failure",
+      "trace_id": "17cb30ab-2b52-44c7-ac24-958a3417409e",
+      "source": "app-mobile",
+      "ip": "177.72.14.203",
+      "app_version": "0.7.0",
+      "user": "c***@demo.com",
+      "account_ref": "acc-fe75337b",
+      "outcome": "invalid_credentials",
+      "attempts_left": 4
+    }
+  },
+  {
+    "descricao": "Conta bloqueada por força bruta",
+    "evento": {
+      "timestamp": "2026-09-25T22:26:41.459Z",
+      "level": "CRITICAL",
+      "event": "auth.account.lockout",
+      "trace_id": "1e4d25df-4aa1-47e5-ab54-d5dc5ab2dc90",
+      "source": "app-mobile",
+      "ip": "177.72.14.203",
+      "app_version": "0.7.0",
+      "user": "c***@demo.com",
+      "account_ref": "acc-fe75337b",
+      "reason": "brute_force_suspected",
+      "threshold": 5,
+      "lock_seconds": 60
+    }
+  },
+  {
+    "descricao": "Alteração crítica: perfil de usuário",
+    "evento": {
+      "timestamp": "2026-09-25T22:26:59.356Z",
+      "level": "WARN",
+      "event": "admin.user.role_changed",
+      "trace_id": "a31cb643-39af-4e8b-bb37-b3010cdb0fc6",
+      "source": "app-mobile",
+      "ip": "177.72.14.203",
+      "app_version": "0.7.0",
+      "user_id": "u-9001",
+      "target_user": "u-2002",
+      "from": "analista",
+      "to": "admin",
+      "sessions_revoked": true,
+      "audit": true,
+      "status": 200
+    }
+  },
+  {
+    "descricao": "API: tentativa de acesso a dado de outro cliente",
+    "evento": {
+      "timestamp": "2026-09-25T22:27:01.222Z",
+      "level": "CRITICAL",
+      "event": "api.authz.bola_attempt",
+      "trace_id": "2b154942-254a-4918-97ec-1f0f664acf1f",
+      "source": "app-mobile",
+      "ip": "177.72.14.203",
+      "app_version": "0.7.0",
+      "user_id": "u-1001",
+      "route": "/v1/vehicles/{id}",
+      "target_resource": "v-5099",
+      "status": 404,
+      "reason": "resource_owned_by_another_user"
+    }
+  },
+  {
+    "descricao": "API: token adulterado recusado",
+    "evento": {
+      "timestamp": "2026-09-25T22:27:04.305Z",
+      "level": "CRITICAL",
+      "event": "api.auth.rejected",
+      "trace_id": "6833c7d0-d1d7-4372-8f6c-77d2ab87686c",
+      "source": "app-mobile",
+      "ip": "177.72.14.203",
+      "app_version": "0.7.0",
+      "method": "GET",
+      "route": "/v1/admin/users",
+      "reason": "signature_mismatch",
+      "status": 401
+    }
+  },
+  {
+    "descricao": "IoT: telemetria rejeitada",
+    "evento": {
+      "timestamp": "2026-09-25T22:26:43.973Z",
+      "level": "WARN",
+      "event": "iot.telemetry.rejected",
+      "trace_id": "68c706a3-feca-4ee8-84ed-ccab0fe0628c",
+      "source": "broker-mqtt",
+      "ip": "10.20.0.15",
+      "app_version": "0.7.0",
+      "device_id": "tcu-5001",
+      "reason": "odometer_rollback",
+      "km_previous": 38422,
+      "km_received": 36920
+    }
+  },
+  {
+    "descricao": "ML: leitura de leads (pseudoanonimizada)",
+    "evento": {
+      "timestamp": "2026-09-25T22:26:44.725Z",
+      "level": "INFO",
+      "event": "data.access",
+      "trace_id": "a1a5660a-2362-42fe-8b17-10cdd2663d11",
+      "source": "app-mobile",
+      "ip": "177.72.14.203",
+      "app_version": "0.7.0",
+      "user_id": "u-2001",
+      "route": "/v1/analytics/leads",
+      "status": 200,
+      "records": 45,
+      "pseudonymized": true
+    }
+  },
+  {
+    "descricao": "Alerta disparado",
+    "evento": {
+      "timestamp": "2026-09-25T22:26:43.974Z",
+      "level": "CRITICAL",
+      "event": "alert.triggered",
+      "trace_id": "bad107b3-4c86-4921-8e00-d7ca9fac73bb",
+      "source": "motor-alertas",
+      "app_version": "0.7.0",
+      "alert_id": "INC-0004",
+      "rule_id": "ALR-11",
+      "severity": "alta",
+      "domain": "IoT",
+      "key": "tcu-5001",
+      "occurrences": 1
+    }
+  },
+  {
+    "descricao": "Resposta: ação de contenção",
+    "evento": {
+      "timestamp": "2026-09-25T22:26:48.823Z",
+      "level": "WARN",
+      "event": "ir.action.executed",
+      "trace_id": "696a007f-c93c-49c6-9693-981c5ab4c9d9",
+      "source": "console-resposta",
+      "app_version": "0.7.0",
+      "incident_id": "INC-0004",
+      "action": "quarantine_device",
+      "target": "tcu-5001"
+    }
+  },
+  {
+    "descricao": "Resposta: incidente encerrado",
+    "evento": {
+      "timestamp": "2026-09-25T22:26:51.795Z",
+      "level": "INFO",
+      "event": "ir.incident.closed",
+      "trace_id": "fcb14365-a29a-4313-abf1-6dcb12080712",
+      "source": "console-resposta",
+      "app_version": "0.7.0",
+      "incident_id": "INC-0004",
+      "classification": "resolvido",
+      "time_to_contain_s": 5,
+      "time_to_resolve_s": 8
+    }
+  }
+]

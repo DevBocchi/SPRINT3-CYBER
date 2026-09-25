@@ -11,8 +11,11 @@ app/                    app estático (HTML, CSS e JS separados; CSP sem script 
 .github/dependabot.yml  SCA contínuo
 .pre-commit-config.yaml hooks locais (Trufflehog e Semgrep)
 Dockerfile, nginx/      imagem de produção sem root e com cabeçalhos de segurança
-docs/                   documentação da Etapa 1, diagrama e evidências
+monitoramento/          catálogo das 12 regras de alerta (com KQL para o Kibana) e métricas por domínio
+docs/                   documentação das etapas, diagramas e evidências
 ```
+
+O app inclui um **Centro de Segurança** (painel à direita): simulações de ataque, logs em JSON, alertas em tempo real, painel de métricas e console de resposta a incidentes (SANS PICERL).
 
 ## Rodar localmente
 

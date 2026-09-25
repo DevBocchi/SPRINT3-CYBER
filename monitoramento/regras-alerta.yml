@@ -1,0 +1,150 @@
+# Catálogo de regras de alerta do Ford Pós-Venda (Etapa 3)
+# Implementadas no motor do app (app/js/app.js, seção 23) e escritas aqui em KQL
+# para uso em produção no Kibana (Elastic Security > regras de detecção).
+#
+# tipo:
+#   consulta   - dispara a cada evento que atende a KQL
+#   limite     - dispara quando a contagem por "agrupar_por" atinge "limite" dentro da "janela"
+#   cardinalidade - dispara quando valores distintos de "contar_distintos" atingem "limite" na "janela"
+
+politica_severidade:
+  critica: { inicio_resposta: "15 min, 24x7", avisar: [plantao, dono_do_sistema, dpo] }
+  alta:    { inicio_resposta: "1 h",          avisar: [plantao, dono_do_sistema] }
+  media:   { inicio_resposta: "4 h (horário comercial)", avisar: [plantao] }
+
+regras:
+  - id: ALR-01
+    nome: Falhas de login repetidas na mesma conta
+    dominio: Autenticação
+    severidade: media
+    tipo: limite
+    kql: 'event: "auth.login.failure"'
+    agrupar_por: account_ref
+    limite: 3
+    janela: 5m
+    playbook: PB-01
+
+  - id: ALR-02
+    nome: Conta bloqueada por força bruta
+    dominio: Autenticação
+    severidade: alta
+    tipo: consulta
+    kql: 'event: "auth.account.lockout"'
+    playbook: PB-01
+
+  - id: ALR-03
+    nome: Password spraying (várias contas, mesma origem)
+    dominio: Autenticação
+    severidade: alta
+    tipo: cardinalidade
+    kql: 'event: "auth.login.failure"'
+    agrupar_por: ip
+    contar_distintos: account_ref
+    limite: 3
+    janela: 5m
+    playbook: PB-01
+
+  - id: ALR-04
+    nome: Token JWT adulterado ou forjado
+    dominio: API
+    severidade: critica
+    tipo: consulta
+    kql: 'event: "api.auth.rejected" and reason: ("signature_mismatch" or "alg_not_allowed" or "malformed")'
+    playbook: PB-02
+    observacao: tokens antigos após rotação de chave geram reason "key_rotated" (INFO) e não disparam esta regra
+
+  - id: ALR-05
+    nome: Acesso a dado de outro cliente (BOLA/IDOR)
+    dominio: API
+    severidade: alta
+    tipo: consulta
+    kql: 'event: "api.authz.bola_attempt"'
+    playbook: PB-03
+
+  - id: ALR-06
+    nome: Tentativas de acesso fora do perfil
+    dominio: API
+    severidade: alta
+    tipo: limite
+    kql: 'event: "access.denied"'
+    agrupar_por: user_id
+    limite: 2
+    janela: 10m
+    playbook: PB-03
+
+  - id: ALR-07
+    nome: Excesso de requisições (rate limit)
+    dominio: API
+    severidade: media
+    tipo: consulta
+    kql: 'event: "api.rate_limited"'
+    playbook: PB-05
+
+  - id: ALR-08
+    nome: Leitura em massa de leads (extração de dados do modelo)
+    dominio: ML
+    severidade: alta
+    tipo: limite
+    kql: 'event: "data.access" and route: "/v1/analytics/leads"'
+    agrupar_por: user_id
+    limite: 5
+    janela: 5m
+    playbook: PB-03
+    observacao: pega abuso que o rate limit não pega (cada requisição isolada é válida)
+
+  - id: ALR-09
+    nome: Perfil de usuário alterado
+    dominio: Administração
+    severidade: "media (alta se o novo perfil for admin)"
+    tipo: consulta
+    kql: 'event: "admin.user.role_changed"'
+    playbook: PB-04
+
+  - id: ALR-10
+    nome: Cache local do app adulterado
+    dominio: Mobile
+    severidade: alta
+    tipo: consulta
+    kql: 'event: "storage.cache.integrity_fail"'
+    playbook: PB-06
+
+  - id: ALR-11
+    nome: Telemetria IoT rejeitada
+    dominio: IoT
+    severidade: alta
+    tipo: consulta
+    kql: 'event: "iot.telemetry.rejected"'
+    agrupar_por: device_id
+    playbook: PB-07
+
+  - id: ALR-12
+    nome: Exclusão de conta pedida com senha errada
+    dominio: Privacidade
+    severidade: media
+    tipo: consulta
+    kql: 'event: "privacy.deletion.reauth_failed"'
+    playbook: PB-01
+
+# Métricas acompanhadas por domínio.
+# status: implementado (existe no protótipo) | planejado (entra com a infraestrutura de produção)
+metricas:
+  api:
+    - { nome: "Respostas 401/403 por minuto", status: implementado, alerta: "ALR-04, ALR-05, ALR-06" }
+    - { nome: "Respostas 429 (rate limit)", status: implementado, alerta: ALR-07 }
+    - { nome: "Taxa de erros 5xx", status: planejado, alerta: "acima de 2% por 5 min" }
+    - { nome: "Latência p95", status: planejado, alerta: "acima de 800 ms por 5 min" }
+  mobile:
+    - { nome: "Falhas de integridade do cache cifrado", status: implementado, alerta: ALR-10 }
+    - { nome: "Taxa de falhas (crash) do app", status: planejado, alerta: "acima de 1% das sessões (Firebase Crashlytics)" }
+    - { nome: "Sessões em versões do app sem suporte", status: planejado, alerta: "forçar atualização" }
+  iot:
+    - { nome: "Telemetria rejeitada por motivo", status: implementado, alerta: ALR-11 }
+    - { nome: "Leituras descartadas por falta de consentimento", status: implementado, alerta: "nenhum (métrica de LGPD)" }
+    - { nome: "Dispositivos sem enviar dados", status: planejado, alerta: "mais de 24 h sem leitura" }
+    - { nome: "Falhas de TLS e desconexões no broker MQTT", status: planejado, alerta: "acima de 5% em 10 min" }
+  ml:
+    - { nome: "Leituras de leads por usuário", status: implementado, alerta: ALR-08 }
+    - { nome: "Desvio (drift) da distribuição de score do modelo", status: planejado, alerta: "PSI acima de 0,2 na comparação semanal" }
+    - { nome: "Conversão de leads encaminhados em agendamento", status: planejado, alerta: "queda acima de 30% no mês" }
+  autenticacao:
+    - { nome: "Logins com falha, bloqueios e spraying", status: implementado, alerta: "ALR-01, ALR-02, ALR-03" }

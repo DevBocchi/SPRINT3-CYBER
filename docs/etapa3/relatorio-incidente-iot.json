@@ -1,0 +1,76 @@
+{
+  "incidente": "INC-0004",
+  "regra": "ALR-11",
+  "titulo": "Telemetria IoT rejeitada",
+  "severidade": "alta",
+  "dominio": "IoT",
+  "chave": "tcu-5001",
+  "playbook": "PB-07 Telemetria IoT adulterada",
+  "status": "resolvido",
+  "detectado_em": "2026-09-25T22:26:43.973Z",
+  "ocorrencias": 2,
+  "fases_concluidas": {
+    "identificacao": "2026-09-25T22:26:47.791Z",
+    "contencao": "2026-09-25T22:26:48.827Z",
+    "erradicacao": "2026-09-25T22:26:51.076Z",
+    "recuperacao": "2026-09-25T22:26:51.793Z"
+  },
+  "metricas": {
+    "tempo_ate_contencao_s": 5,
+    "tempo_ate_resolucao_s": 8
+  },
+  "passos": [
+    {
+      "fase": "identificacao",
+      "passo": "Conferir os motivos da rejeição (assinatura inválida, odômetro voltando, VIN diferente).",
+      "concluido_em": "2026-09-25T22:26:47.401Z",
+      "resultado": null
+    },
+    {
+      "fase": "identificacao",
+      "passo": "Levantar as leituras do dispositivo",
+      "concluido_em": "2026-09-25T22:26:47.789Z",
+      "resultado": "Leituras de tcu-5001: 2× iot.telemetry.rejected, 1× iot.telemetry.accepted."
+    },
+    {
+      "fase": "identificacao",
+      "passo": "Classificar o alerta",
+      "concluido_em": "2026-09-25T22:26:47.606Z",
+      "resultado": "Verdadeiro positivo"
+    },
+    {
+      "fase": "contencao",
+      "passo": "Pôr o módulo tcu-5001 em quarentena",
+      "concluido_em": "2026-09-25T22:26:48.825Z",
+      "resultado": "Dispositivo tcu-5001 em quarentena. A API passa a descartar os dados dele."
+    },
+    {
+      "fase": "erradicacao",
+      "passo": "Revogar a credencial do dispositivo e gerar uma chave nova (após inspeção na concessionária)",
+      "concluido_em": "2026-09-25T22:26:51.074Z",
+      "resultado": "Credencial de tcu-5001 revogada e chave nova gerada. Mensagens assinadas com a chave antiga passam a ser recusadas."
+    },
+    {
+      "fase": "erradicacao",
+      "passo": "Corrigir a quilometragem do veículo com a leitura do painel feita na concessionária.",
+      "concluido_em": "2026-09-25T22:26:50.889Z",
+      "resultado": null
+    },
+    {
+      "fase": "recuperacao",
+      "passo": "Retirar tcu-5001 da quarentena",
+      "concluido_em": "2026-09-25T22:26:51.792Z",
+      "resultado": "Dispositivo tcu-5001 fora da quarentena."
+    },
+    {
+      "fase": "recuperacao",
+      "passo": "Acompanhar as leituras do dispositivo por 24 horas.",
+      "concluido_em": "2026-09-25T22:26:51.606Z",
+      "resultado": null
+    }
+  ],
+  "evidencias_trace_id": [
+    "68c706a3-feca-4ee8-84ed-ccab0fe0628c",
+    "ccd9dfa9-3947-438d-8edc-e3ec0d126393"
+  ]
+}

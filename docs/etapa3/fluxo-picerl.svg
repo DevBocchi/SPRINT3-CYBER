@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1080" font-family="DejaVu Sans, Arial, sans-serif">
+  <defs>
+    <marker id="s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#44506a"/></marker>
+  </defs>
+  <rect width="1000" height="1080" fill="#fff"/>
+  <text x="40" y="48" font-size="26" font-weight="700" fill="#0a2350">Resposta a incidentes (SANS PICERL)</text>
+  <text x="40" y="74" font-size="14" fill="#58657e">Fluxo aplicado ao Ford Pós-Venda. Exemplos do playbook PB-07, telemetria IoT adulterada.</text>
+
+  <!-- Preparação -->
+  <rect x="40" y="100" width="920" height="124" rx="14" fill="#f5f6f9" stroke="#8a95ab" stroke-width="1.5"/>
+  <circle cx="78" cy="138" r="20" fill="#44506a"/><text x="78" y="144" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">P</text>
+  <text x="112" y="136" font-size="18" font-weight="700" fill="#0e1b33">Preparação</text>
+  <text x="112" y="158" font-size="13" fill="#58657e">Antes de qualquer incidente</text>
+  <text x="112" y="186" font-size="13" fill="#0e1b33">Logs JSON com trace_id, 12 regras de alerta, 7 playbooks, ações de contenção prontas no console,</text>
+  <text x="112" y="206" font-size="13" fill="#0e1b33">papéis definidos (analista de plantão, dono do sistema, DPO). IoT: mensagens assinadas com HMAC.</text>
+  <line x1="500" y1="224" x2="500" y2="252" stroke="#44506a" stroke-width="2" marker-end="url(#s)"/>
+  <rect x="330" y="256" width="340" height="44" rx="22" fill="#fff8e6" stroke="#e3a21a" stroke-width="2"/>
+  <text x="500" y="284" text-anchor="middle" font-size="14" font-weight="700" fill="#0e1b33">Alerta ALR-11 abre o INC-0004</text>
+  <line x1="500" y1="300" x2="500" y2="328" stroke="#44506a" stroke-width="2" marker-end="url(#s)"/>
+
+  <!-- Identificação -->
+  <rect x="40" y="332" width="920" height="124" rx="14" fill="#eef4ff" stroke="#16408c" stroke-width="2"/>
+  <circle cx="78" cy="370" r="20" fill="#16408c"/><text x="78" y="376" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">I</text>
+  <text x="112" y="368" font-size="18" font-weight="700" fill="#0e1b33">Identificação</text>
+  <text x="112" y="390" font-size="13" fill="#58657e">Confirmar o que aconteceu e se é real</text>
+  <text x="112" y="418" font-size="13" fill="#0e1b33">Eventos relacionados: odometer_rollback e invalid_signature no tcu-5001. Consulta automática:</text>
+  <text x="112" y="438" font-size="13" fill="#0e1b33">2 leituras rejeitadas e 1 aceita. Classificação: verdadeiro positivo.</text>
+  <line x1="500" y1="456" x2="500" y2="484" stroke="#44506a" stroke-width="2" marker-end="url(#s)"/>
+  <polygon points="500,488 620,522 500,556 380,522" fill="#fff" stroke="#e3a21a" stroke-width="2"/>
+  <text x="500" y="527" text-anchor="middle" font-size="13" font-weight="700" fill="#0e1b33">Falso positivo?</text>
+  <line x1="620" y1="522" x2="760" y2="522" stroke="#1c7f55" stroke-width="2" marker-end="url(#s)"/>
+  <text x="690" y="512" text-anchor="middle" font-size="12" font-weight="700" fill="#1c7f55">sim</text>
+  <rect x="764" y="500" width="196" height="44" rx="10" fill="#e8f5ee" stroke="#1c7f55"/>
+  <text x="862" y="527" text-anchor="middle" font-size="13" font-weight="700" fill="#1c7f55">Encerrar e registrar</text>
+  <line x1="500" y1="556" x2="500" y2="584" stroke="#44506a" stroke-width="2" marker-end="url(#s)"/>
+  <text x="512" y="576" font-size="12" font-weight="700" fill="#b8322a">não</text>
+
+  <!-- Contenção -->
+  <rect x="40" y="588" width="920" height="104" rx="14" fill="#fdecea" stroke="#b8322a" stroke-width="2"/>
+  <circle cx="78" cy="626" r="20" fill="#b8322a"/><text x="78" y="632" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">C</text>
+  <text x="112" y="624" font-size="18" font-weight="700" fill="#0e1b33">Contenção</text>
+  <text x="112" y="646" font-size="13" fill="#58657e">Parar o dano sem destruir evidências</text>
+  <text x="112" y="672" font-size="13" fill="#0e1b33">Módulo tcu-5001 em quarentena: a API descarta os dados dele (nova tentativa: rejeitada por quarentena).</text>
+  <line x1="500" y1="692" x2="500" y2="720" stroke="#44506a" stroke-width="2" marker-end="url(#s)"/>
+
+  <!-- Erradicação -->
+  <rect x="40" y="724" width="920" height="124" rx="14" fill="#fff8e6" stroke="#e3a21a" stroke-width="2"/>
+  <circle cx="78" cy="762" r="20" fill="#c9870a"/><text x="78" y="768" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">E</text>
+  <text x="112" y="760" font-size="18" font-weight="700" fill="#0e1b33">Erradicação</text>
+  <text x="112" y="782" font-size="13" fill="#58657e">Remover a causa</text>
+  <text x="112" y="810" font-size="13" fill="#0e1b33">Credencial do dispositivo revogada e chave nova gerada (a chave antiga passa a ser recusada).</text>
+  <text x="112" y="830" font-size="13" fill="#0e1b33">Quilometragem corrigida com a leitura do painel feita na concessionária.</text>
+  <line x1="500" y1="848" x2="500" y2="876" stroke="#44506a" stroke-width="2" marker-end="url(#s)"/>
+
+  <!-- Recuperação -->
+  <rect x="40" y="880" width="920" height="104" rx="14" fill="#e8f5ee" stroke="#1c7f55" stroke-width="2"/>
+  <circle cx="78" cy="918" r="20" fill="#1c7f55"/><text x="78" y="924" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">R</text>
+  <text x="112" y="916" font-size="18" font-weight="700" fill="#0e1b33">Recuperação</text>
+  <text x="112" y="938" font-size="13" fill="#58657e">Voltar ao normal com segurança</text>
+  <text x="112" y="964" font-size="13" fill="#0e1b33">Dispositivo fora da quarentena; leituras acompanhadas por 24 horas. Incidente encerrado com relatório.</text>
+
+  <text x="40" y="1030" font-size="13" fill="#58657e">Lições Aprendidas, a sexta fase do PICERL, não entra nesta entrega, conforme orientação da disciplina.</text>
+  <text x="40" y="1052" font-size="13" fill="#58657e">Cada fase só é liberada quando a anterior termina. Todos os passos ficam no log (ir.step.completed, ir.action.executed).</text>
+</svg>

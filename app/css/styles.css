@@ -290,6 +290,96 @@ textarea.obs[aria-invalid="true"]{border-color:var(--danger)}
 .check{display:flex; gap:10px; align-items:flex-start; font-size:14px; line-height:1.45; cursor:pointer}
 .check input{flex:none; width:18px; height:18px; margin-top:2px; accent-color:var(--danger)}
 
+/* =========================================================
+   CENTRO DE SEGURANÇA: abas, alertas e painel (Etapa 3)
+   ========================================================= */
+.dev-tabs{display:flex; gap:4px; margin-top:4px; padding:4px; border-radius:12px; background:color-mix(in srgb, var(--ford-blue) 8%, var(--log-bg)); border:1px solid var(--line)}
+.dev-tabs button{flex:1; height:36px; border:0; border-radius:9px; background:transparent; font-weight:700; font-size:14px; color:var(--muted); cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px}
+.dev-tabs button[aria-selected="true"]{background:var(--log-bg); color:var(--ink); box-shadow:0 1px 3px rgba(10,35,80,.18)}
+.badge{min-width:20px; height:20px; padding:0 6px; border-radius:99px; background:var(--danger); color:#fff; font-size:12px; line-height:20px; font-variant-numeric:tabular-nums}
+.dev-view{display:flex; flex-direction:column; flex:1; min-height:0}
+.dev-view[hidden]{display:none}
+.alertas{padding:12px; display:flex; flex-direction:column; gap:10px; overflow:auto}
+.alerta{border:1px solid var(--line); border-left:5px solid var(--signal); border-radius:12px; padding:12px 14px; background:var(--log-bg)}
+.alerta.sev-alta,.alerta.sev-critica{border-left-color:var(--danger)}
+.alerta.sev-critica{background:color-mix(in srgb, var(--danger) 6%, var(--log-bg))}
+.alerta-topo{display:flex; align-items:center; gap:8px; margin-bottom:6px}
+.alerta-id{font-family:var(--mono); font-weight:700; font-size:13px}
+.alerta .estado{margin-left:auto; font-size:12px; font-weight:700; color:var(--muted)}
+.alerta h4{margin:0 0 6px; font-size:15px}
+.alerta p{margin:0 0 4px; font-size:13px; line-height:1.45}
+.alerta .meta{color:var(--muted)}
+.alerta .evid{font-family:var(--mono); font-size:11.5px; color:var(--muted); word-break:break-all}
+.sev{font-size:12px; font-weight:700; padding:3px 9px; border-radius:99px}
+.sev.critica{background:var(--danger); color:#fff}
+.sev.alta{background:color-mix(in srgb, var(--danger) 14%, var(--log-bg)); color:var(--danger)}
+.sev.media{background:color-mix(in srgb, var(--signal) 22%, var(--log-bg)); color:color-mix(in srgb, var(--signal) 55%, var(--ink))}
+.painel{padding:14px 16px 18px; overflow:auto; display:flex; flex-direction:column; gap:12px}
+.painel-sub{margin:0; font-size:13px; color:var(--muted)}
+.kpis{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px}
+.kpi-card{border:1px solid var(--line); border-radius:12px; padding:10px 12px}
+.kpi-card b{display:block; font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.1}
+.kpi-card span{font-size:12px; color:var(--muted)}
+.kpi-card.warn b{color:color-mix(in srgb, var(--signal) 60%, var(--ink))}
+.kpi-card.bad{border-color:var(--danger); background:color-mix(in srgb, var(--danger) 6%, var(--log-bg))}
+.kpi-card.bad b{color:var(--danger)}
+.painel-bloco{border:1px solid var(--line); border-radius:12px; padding:12px 14px}
+.painel-bloco h4{margin:0 0 10px; font-size:14px}
+.painel-bloco svg{width:100%; height:auto; display:block}
+.painel-bloco .eixo{font-size:12px; fill:var(--muted)}
+.legenda{display:flex; gap:14px; font-size:12px; color:var(--muted); margin-top:6px}
+.legenda span::before{content:""; display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px}
+.legenda .l-info::before{background:var(--ok)} .legenda .l-warn::before{background:var(--signal)} .legenda .l-crit::before{background:var(--danger)}
+.painel-duplo{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.mini-barras{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px}
+.mini-barras li{display:grid; grid-template-columns:1fr auto; gap:3px 8px; font-size:12.5px}
+.mini-barras .rot{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.mini-barras .num{font-weight:700; font-variant-numeric:tabular-nums}
+.mini-barras .trilho{grid-column:1 / -1; height:6px; border-radius:99px; background:var(--line); overflow:hidden}
+.mini-barras .trilho span{display:block; height:100%; background:var(--ford-blue); border-radius:99px}
+.sev-linha{display:flex; gap:8px; flex-wrap:wrap}
+.devpanel .dev-actions.dev-sec{display:flex; gap:8px; flex-wrap:wrap}
+@media (max-width: 860px){ .kpis{grid-template-columns:repeat(2, 1fr)} .painel-duplo{grid-template-columns:1fr} }
+
+/* Resposta a incidentes (PICERL) */
+.alertas{flex:1; min-height:0}
+.alerta-rodape{display:flex; justify-content:flex-end; margin-top:8px}
+.alerta .estado.st-contido,.alerta .estado.st-erradicado{color:var(--ford-blue)}
+.alerta .estado.st-resolvido,.alerta .estado.st-falso_positivo{color:var(--ok)}
+.alerta .estado.st-analise{color:color-mix(in srgb, var(--signal) 60%, var(--ink))}
+.voltar{align-self:flex-start; height:34px; padding:0 12px; border-radius:9px; border:1.5px solid var(--line); background:transparent; font-weight:700; font-size:13px; cursor:pointer}
+.inc-metricas{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-top:10px}
+.inc-metricas div{border:1px solid var(--line); border-radius:10px; padding:8px 10px; background:var(--log-bg)}
+.inc-metricas b{display:block; font-size:15px; font-variant-numeric:tabular-nums}
+.inc-metricas span{font-size:12px; color:var(--muted)}
+.fase{border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--log-bg)}
+.fase.atual{border-color:var(--ford-blue); box-shadow:0 0 0 1px var(--ford-blue)}
+.fase.bloqueada,.fase.na{opacity:.55}
+.fase-topo{display:flex; align-items:center; gap:10px; margin-bottom:8px}
+.fase-topo h5{margin:0; font-size:15px}
+.fase-num{flex:none; width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:800; background:var(--line); color:var(--ink)}
+.fase.feita .fase-num{background:var(--ok); color:#fff}
+.fase.atual .fase-num{background:var(--ford-blue); color:#fff}
+.fase-estado{margin-left:auto; font-size:12px; color:var(--muted); text-align:right}
+.prep summary{cursor:pointer; font-size:13px; font-weight:600; color:var(--muted)}
+.prep ul{margin:8px 0 0; padding-left:18px; font-size:13px; line-height:1.5}
+.passo{padding:8px 0; border-top:1px solid var(--line)}
+.fase-topo + .passo{border-top:0; padding-top:0}
+.passo-check{display:flex; gap:10px; align-items:flex-start; font-size:13.5px; line-height:1.45; cursor:pointer}
+.passo-check input{flex:none; width:17px; height:17px; margin-top:1px; accent-color:var(--ok)}
+.passo.feita,.passo.feito .passo-check span{color:var(--muted)}
+.passo-acao{display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:13.5px; line-height:1.45}
+.passo-titulo{display:block; font-size:13.5px; font-weight:600; margin-bottom:6px}
+.passo-res{margin:6px 0 0; padding:7px 10px; border-radius:8px; font-size:12.5px; line-height:1.45; background:color-mix(in srgb, var(--ok) 10%, var(--log-bg)); color:var(--ink)}
+.decisao{display:flex; gap:8px; flex-wrap:wrap}
+.btn-sm.perigo{background:var(--danger)}
+.ev-rel{list-style:none; margin:0; padding:0; font-size:12.5px}
+.ev-rel li{display:grid; grid-template-columns:auto auto 1fr; gap:8px; padding:5px 0; border-top:1px solid var(--line); align-items:baseline}
+.ev-rel li:first-child{border-top:0}
+.ev-rel time{font-family:var(--mono); color:var(--muted)}
+.ev-rel code{font-family:var(--mono); font-weight:700}
+.ev-rel span{color:var(--muted); word-break:break-word}
+
 /* Painel: simulações e armazenamento */
 .dev-sec{padding:14px 20px; border-bottom:1px solid var(--line)}
 .dev-sec h3{margin:0 0 4px; font-size:15px}
