@@ -1,0 +1,172 @@
+# Regras SAST do projeto Ford Pós-Venda (Challenge Ford, Sprint 3)
+# Cada regra aponta o risco, o requisito OWASP e como corrigir.
+# Execução: semgrep scan --config .semgrep/ --error
+
+rules:
+  - id: ford.xss-innerhtml-dinamico
+    languages: [javascript]
+    severity: ERROR
+    message: >-
+      innerHTML recebendo valor dinâmico. Se o valor vier do usuário ou da API, vira XSS.
+      Use textContent ou crie os elementos com document.createElement (função el() do projeto).
+    metadata:
+      owasp: "A03:2021 Injection"
+      cwe: "CWE-79"
+      referencia: "OWASP ASVS V5.3.3"
+    pattern-either:
+      - patterns:
+          - pattern: $EL.innerHTML = $X
+          - pattern-not: $EL.innerHTML = "..."
+          - pattern-not: $EL.innerHTML = `...`
+      - pattern: $EL.innerHTML = `...${$Y}...`
+      - pattern: $EL.insertAdjacentHTML($POS, $X)
+      - pattern: document.write($X)
+
+  - id: ford.execucao-dinamica-de-codigo
+    languages: [javascript]
+    severity: ERROR
+    message: >-
+      eval/new Function executam texto como código. Qualquer entrada que chegue aqui
+      permite executar código arbitrário no app.
+    metadata:
+      owasp: "A03:2021 Injection"
+      cwe: "CWE-95"
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+      - pattern: setTimeout("...", ...)
+      - pattern: setInterval("...", ...)
+
+  - id: ford.token-em-web-storage
+    languages: [javascript]
+    severity: ERROR
+    message: >-
+      Token ou dado de sessão em localStorage/sessionStorage fica acessível a qualquer
+      script da página (XSS) e persiste no aparelho. Mantenha o token em memória
+      (no app nativo: Keychain/Keystore).
+    metadata:
+      owasp: "OWASP Mobile Top 10 2024 M9: Insecure Data Storage"
+      cwe: "CWE-922"
+    pattern-either:
+      - pattern: localStorage.setItem(...)
+      - pattern: sessionStorage.setItem(...)
+      - pattern: localStorage[$K] = $V
+      - pattern: window.localStorage.setItem(...)
+
+  - id: ford.jwt-decode-sem-verificar
+    languages: [javascript]
+    severity: ERROR
+    message: >-
+      jwt.decode() não confere a assinatura. Qualquer pessoa consegue forjar o token
+      (ex.: trocar role para admin). Use jwt.verify() com algoritmo fixo.
+    metadata:
+      owasp: "API2:2023 Broken Authentication"
+      cwe: "CWE-347"
+    pattern: jwt.decode(...)
+
+  - id: ford.jwt-sem-algoritmo-fixo
+    languages: [javascript]
+    severity: WARNING
+    message: >-
+      jwt.verify() sem a opção algorithms aceita o algoritmo que vier no cabeçalho do
+      token (risco de "alg: none" e confusão de algoritmo). Informe { algorithms: ['HS256'] }.
+    metadata:
+      owasp: "API2:2023 Broken Authentication"
+      cwe: "CWE-327"
+    pattern: jwt.verify($TOKEN, $CHAVE)
+
+  - id: ford.segredo-fixo-no-codigo
+    languages: [javascript]
+    severity: ERROR
+    message: >-
+      Segredo escrito direto no código ($NOME). Ele vai para o Git e para qualquer cópia do
+      repositório. Leia de variável de ambiente ou de um cofre (GitHub Secrets, Azure Key Vault).
+    metadata:
+      owasp: "A07:2021 Identification and Authentication Failures"
+      cwe: "CWE-798"
+    patterns:
+      - pattern-either:
+          - pattern: const $NOME = "$VALOR"
+          - pattern: let $NOME = "$VALOR"
+          - pattern: var $NOME = "$VALOR"
+          - pattern: $OBJ.$NOME = "$VALOR"
+          - pattern: |
+              {..., $NOME: "$VALOR", ...}
+      - metavariable-regex:
+          metavariable: $NOME
+          regex: (?i).*(secret|segredo|senha|password|passwd|api_?key|private_?key|access_?key|token).*
+      # Valor sem espaços e com 6+ caracteres: descarta textos de interface ("Informe sua senha.")
+      - metavariable-regex:
+          metavariable: $VALOR
+          regex: ^\S{6,}$
+
+  - id: ford.hash-fraco
+    languages: [javascript]
+    severity: ERROR
+    message: >-
+      MD5 e SHA-1 são rápidos e quebrados para senhas. Use bcrypt/argon2/PBKDF2 com salt
+      (o app usa PBKDF2-SHA256 com 100 mil iterações).
+    metadata:
+      owasp: "A02:2021 Cryptographic Failures"
+      cwe: "CWE-328"
+    pattern-either:
+      - pattern: crypto.createHash("md5")
+      - pattern: crypto.createHash("sha1")
+      - pattern: CryptoJS.MD5(...)
+      - pattern: CryptoJS.SHA1(...)
+      - pattern: md5(...)
+
+  - id: ford.aleatorio-inseguro
+    languages: [javascript]
+    severity: WARNING
+    message: >-
+      Math.random() é previsível. Para tokens, códigos de verificação e chaves use
+      crypto.randomUUID() ou crypto.getRandomValues().
+    metadata:
+      owasp: "A02:2021 Cryptographic Failures"
+      cwe: "CWE-338"
+    pattern: Math.random()
+
+  - id: ford.cors-curinga
+    languages: [javascript]
+    severity: ERROR
+    message: >-
+      CORS liberado para qualquer origem ("*"). Qualquer site pode chamar a API a partir
+      do navegador do usuário. Liste só as origens do app.
+    metadata:
+      owasp: "A05:2021 Security Misconfiguration"
+      cwe: "CWE-942"
+    pattern-either:
+      - pattern: $RES.setHeader("Access-Control-Allow-Origin", "*")
+      - pattern: $RES.header("Access-Control-Allow-Origin", "*")
+      - pattern: 'cors({..., origin: "*", ...})'
+      - pattern: cors()
+
+  - id: ford.log-com-dado-sensivel
+    languages: [javascript]
+    severity: ERROR
+    message: >-
+      Log registrando senha, token ou corpo inteiro da requisição. Logs são lidos por mais
+      pessoas e guardados por meses (LGPD, exposição acidental).
+    metadata:
+      owasp: "A09:2021 Security Logging and Monitoring Failures"
+      cwe: "CWE-532"
+    pattern-either:
+      - pattern: console.$F(..., $X.senha, ...)
+      - pattern: console.$F(..., $X.password, ...)
+      - pattern: console.$F(..., $X.token, ...)
+      - pattern: console.$F(..., $REQ.body, ...)
+      - pattern: console.$F(..., $REQ.headers.authorization, ...)
+
+  - id: ford.exposicao-de-ambiente
+    languages: [javascript]
+    severity: ERROR
+    message: >-
+      Resposta HTTP expondo process.env (chaves, senhas de banco, segredos).
+      Endpoints de debug não podem ir para produção.
+    metadata:
+      owasp: "A05:2021 Security Misconfiguration"
+      cwe: "CWE-200"
+    pattern-either:
+      - pattern: $RES.json(<... process.env ...>)
+      - pattern: $RES.send(<... process.env ...>)

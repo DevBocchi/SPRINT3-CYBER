@@ -1,0 +1,19 @@
+# Barreira local: roda no computador do desenvolvedor ANTES do commit existir.
+# Instalação (uma vez por máquina):  pip install pre-commit && pre-commit install
+# Requer trufflehog e semgrep instalados no PATH.
+repos:
+  - repo: local
+    hooks:
+      - id: trufflehog
+        name: Trufflehog (segredos nos arquivos do commit)
+        # No commit, bloqueia qualquer coisa com cara de segredo, mesmo sem validar
+        entry: trufflehog filesystem --no-update --fail --no-verification
+        language: system
+        pass_filenames: true
+
+      - id: semgrep
+        name: Semgrep (regras do projeto)
+        entry: semgrep scan --config .semgrep/ --error --metrics=off --quiet
+        language: system
+        types: [javascript]
+        pass_filenames: true

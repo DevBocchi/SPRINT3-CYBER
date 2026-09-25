@@ -1,0 +1,22 @@
+# SCA: o Dependabot acompanha as dependências reais do projeto hoje
+# (as GitHub Actions do pipeline e a imagem base do container)
+# e abre PR quando sai versão nova ou correção de segurança.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [dependencias, seguranca]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    labels: [dependencias, seguranca]
+
+  # Quando a API virar um serviço Node.js, ativar também:
+  # - package-ecosystem: npm
+  #   directory: /api
+  #   schedule:
+  #     interval: daily

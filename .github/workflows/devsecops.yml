@@ -1,0 +1,128 @@
+# Pipeline DevSecOps do Ford Pós-Venda
+# Ordem: segredos -> SAST -> container -> deploy.
+# O deploy só roda se TODAS as verificações passarem (security gate).
+# Actions de terceiros fixadas por hash de commit (a tag fica no comentário):
+# uma tag pode ser movida para código malicioso, um hash não.
+
+name: DevSecOps
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 9 * * 1"   # segunda-feira, 06h em Brasília: reavalia código parado contra regras novas
+  workflow_dispatch:
+
+permissions:
+  contents: read           # menor privilégio por padrão; cada job pede só o que precisa
+
+concurrency:
+  group: devsecops-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  segredos:
+    name: Secret Scanning (Trufflehog)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout com histórico completo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0          # segredo apagado continua no histórico do Git
+          persist-credentials: false
+
+      - name: Trufflehog
+        uses: trufflesecurity/trufflehog@4dd8831c5f12599465d4d45c3c447b4018a34c85 # v3.97.9
+        with:
+          extra_args: --results=verified,unknown
+
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write  # publicar os achados na aba Security do GitHub
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Instalar Semgrep
+        run: python3 -m pip install --user semgrep==1.178.0
+
+      - name: Regras do projeto (bloqueiam o pipeline)
+        run: |
+          mkdir -p resultados
+          semgrep scan --config .semgrep/ --error --metrics=off \
+            --sarif-output=resultados/semgrep-ford.sarif
+
+      - name: Regras OWASP da comunidade (informativas)
+        if: always()
+        run: |
+          semgrep scan --config p/owasp-top-ten --config p/javascript --metrics=off \
+            --sarif-output=resultados/semgrep-owasp.sarif
+
+      - name: Enviar achados do projeto para a aba Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: resultados/semgrep-ford.sarif
+          category: semgrep-ford
+
+      - name: Enviar achados OWASP para a aba Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: resultados/semgrep-owasp.sarif
+          category: semgrep-owasp
+
+  container:
+    name: Container Security (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build da imagem
+        run: docker build -t ford-posvenda:${{ github.sha }} .
+
+      - name: Trivy (vulnerabilidades da imagem)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ford-posvenda:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Trivy (configuração do Dockerfile)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+
+  deploy:
+    name: Deploy (GitHub Pages)
+    needs: [segredos, sast, container]   # security gate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: app
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
