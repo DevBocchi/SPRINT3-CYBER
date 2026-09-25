@@ -1,0 +1,139 @@
+$ semgrep scan --config .semgrep/ --error --metrics=off
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 13 files tracked by git with 11 Code rules:
+  Scanning 3 files with 11 js rules.
+                    
+                    
+┌──────────────────┐
+│ 16 Code Findings │
+└──────────────────┘
+                         
+    api/legado/auth-v0.js
+   ❯❯❱ semgrep.ford.segredo-fixo-no-codigo
+          ❰❰ Blocking ❱❱
+          Segredo escrito direto no código (JWT_SECRET). Ele vai para o Git e para qualquer cópia do 
+          repositório. Leia de variável de ambiente ou de um cofre (GitHub Secrets, Azure Key Vault).
+                                                                                                     
+           11┆ const JWT_SECRET = "ford-challenge-2026-chave-jwt";
+   
+   ❯❯❱ semgrep.ford.cors-curinga
+          ❰❰ Blocking ❱❱
+          CORS liberado para qualquer origem ("*"). Qualquer site pode chamar a API a partir do navegador do
+          usuário. Liste só as origens do app.                                                              
+                                                                                                            
+           14┆ res.setHeader("Access-Control-Allow-Origin", "*");
+   
+   ❯❯❱ semgrep.ford.log-com-dado-sensivel
+          ❰❰ Blocking ❱❱
+          Log registrando senha, token ou corpo inteiro da requisição. Logs são lidos por mais pessoas e
+          guardados por meses (LGPD, exposição acidental).                                              
+                                                                                                        
+           19┆ console.log('login recebido', req.body);
+   
+   ❯❯❱ semgrep.ford.hash-fraco
+          ❰❰ Blocking ❱❱
+          MD5 e SHA-1 são rápidos e quebrados para senhas. Use bcrypt/argon2/PBKDF2 com salt (o app usa
+          PBKDF2-SHA256 com 100 mil iterações).                                                        
+                                                                                                       
+           20┆ const hash = crypto.createHash("md5").update(req.body.senha).digest('hex');
+   
+   ❯❯❱ semgrep.ford.jwt-decode-sem-verificar
+          ❰❰ Blocking ❱❱
+          jwt.decode() não confere a assinatura. Qualquer pessoa consegue forjar o token (ex.: trocar role
+          para admin). Use jwt.verify() com algoritmo fixo.                                               
+                                                                                                          
+           28┆ const payload = jwt.decode(req.headers.authorization);
+   
+    ❯❱ semgrep.ford.aleatorio-inseguro
+          ❰❰ Blocking ❱❱
+          Math.random() é previsível. Para tokens, códigos de verificação e chaves use crypto.randomUUID() ou
+          crypto.getRandomValues().                                                                          
+                                                                                                             
+           34┆ const codigo = Math.random().toString(36).slice(2, 8);
+   
+   ❯❯❱ semgrep.ford.exposicao-de-ambiente
+          ❰❰ Blocking ❱❱
+          Resposta HTTP expondo process.env (chaves, senhas de banco, segredos). Endpoints de debug não podem
+          ir para produção.                                                                                  
+                                                                                                             
+           40┆ res.json({ status: 'ok', env: process.env });
+                 
+    app/js/app.js
+   ❯❯❱ semgrep.ford.segredo-fixo-no-codigo
+          ❰❰ Blocking ❱❱
+          Segredo escrito direto no código (senha). Ele vai para o Git e para qualquer cópia do repositório.
+          Leia de variável de ambiente ou de um cofre (GitHub Secrets, Azure Key Vault).                    
+                                                                                                            
+           44┆ { email:'cliente@demo.com',  senha:'Cliente@2026',  perfil:'cliente' },
+            ⋮┆----------------------------------------
+           45┆ { email:'analista@ford.com', senha:'Analista@2026', perfil:'analista' },
+            ⋮┆----------------------------------------
+           46┆ { email:'admin@ford.com',    senha:'Admin@2026',    perfil:'admin' }
+   
+   ❯❯❱ semgrep.ford.xss-innerhtml-dinamico
+          ❰❰ Blocking ❱❱
+          innerHTML recebendo valor dinâmico. Se o valor vier do usuário ou da API, vira XSS. Use textContent
+          ou crie os elementos com document.createElement (função el() do projeto).                          
+                                                                                                             
+          256┆ tela.innerHTML = `
+          257┆   <div class="hero">
+          258┆     <p class="brand">Ford Pós-Venda</p>
+          259┆     <h1>Entre na sua conta</h1>
+          260┆     <p>Acompanhe revisões, garantia e agendamentos do seu Ford.</p>
+          261┆   </div>
+          262┆   <form class="form" id="formLogin" novalidate autocomplete="on">
+          263┆     <div id="msg" role="alert"></div>
+          264┆     <div class="field">
+          265┆       <label for="email">E-mail</label>
+             [hid 21 additional lines, adjust with --max-lines-per-finding] 
+   
+   ❯❯❱ semgrep.ford.segredo-fixo-no-codigo
+          ❰❰ Blocking ❱❱
+          Segredo escrito direto no código (senha). Ele vai para o Git e para qualquer cópia do repositório.
+          Leia de variável de ambiente ou de um cofre (GitHub Secrets, Azure Key Vault).                    
+                                                                                                            
+          350┆ const campos = { email: 'erroEmail', senha: 'erroSenha' };
+            ⋮┆----------------------------------------
+          1427┆ const r = await api('POST', '/v1/me/deletion', sessao.token, { corpo: { senha:
+               'SenhaErrada1' } });                                                           
+                           
+    app/legado/sessao-v0.js
+   ❯❯❱ semgrep.ford.token-em-web-storage
+          ❰❰ Blocking ❱❱
+          Token ou dado de sessão em localStorage/sessionStorage fica acessível a qualquer script da página
+          (XSS) e persiste no aparelho. Mantenha o token em memória (no app nativo: Keychain/Keystore).    
+                                                                                                           
+            3┆ localStorage.setItem('token', token);
+   
+   ❯❯❱ semgrep.ford.xss-innerhtml-dinamico
+          ❰❰ Blocking ❱❱
+          innerHTML recebendo valor dinâmico. Se o valor vier do usuário ou da API, vira XSS. Use textContent
+          ou crie os elementos com document.createElement (função el() do projeto).                          
+                                                                                                             
+            4┆ document.getElementById('saudacao').innerHTML = 'Olá, ' + usuario.nome;
+   
+   ❯❯❱ semgrep.ford.execucao-dinamica-de-codigo
+          ❰❰ Blocking ❱❱
+          eval/new Function executam texto como código. Qualquer entrada que chegue aqui permite executar
+          código arbitrário no app.                                                                      
+                                                                                                         
+            8┆ return lista.filter(v => eval(expressao));
+
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+✅ Scan completed successfully.
+ • Findings: 16 (16 blocking)
+ • Rules run: 11
+ • Targets scanned: 3
+ • Parsed lines: ~100.0%
+ • Scan was limited to files tracked by git
+ • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+Ran 11 rules on 3 files: 16 findings.
+[exit code: 1]

@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1240" font-family="DejaVu Sans, Arial, sans-serif">
+  <defs>
+    <marker id="seta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#44506a"/></marker>
+    <marker id="setaV" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b8322a"/></marker>
+    <marker id="setaG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1c7f55"/></marker>
+  </defs>
+  <rect width="1000" height="1240" fill="#ffffff"/>
+
+  <text x="40" y="48" font-size="26" font-weight="700" fill="#0a2350">Pipeline DevSecOps: Ford Pós-Venda</text>
+  <text x="40" y="74" font-size="14" fill="#58657e">Do commit ao deploy: cada etapa pode barrar o código antes que ele chegue ao usuário</text>
+
+  <!-- Desenvolvedor -->
+  <rect x="330" y="100" width="340" height="56" rx="12" fill="#0a2350"/>
+  <text x="500" y="126" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">Desenvolvedor</text>
+  <text x="500" y="146" text-anchor="middle" font-size="13" fill="#c9d3e6">git add + git commit</text>
+  <line x1="500" y1="156" x2="500" y2="192" stroke="#44506a" stroke-width="2" marker-end="url(#seta)"/>
+
+  <!-- 1. pre-commit -->
+  <rect x="40" y="196" width="700" height="190" rx="16" fill="#eef4ff" stroke="#16408c" stroke-width="2"/>
+  <text x="62" y="226" font-size="17" font-weight="700" fill="#16408c">1. pre-commit (máquina do desenvolvedor)</text>
+  <text x="62" y="248" font-size="13" fill="#58657e">Roda antes de o commit existir. Arquivo: .pre-commit-config.yaml</text>
+  <rect x="62" y="264" width="318" height="100" rx="12" fill="#fff" stroke="#1c7f55" stroke-width="2"/>
+  <text x="221" y="294" text-anchor="middle" font-size="16" font-weight="700" fill="#0e1b33">Trufflehog</text>
+  <text x="221" y="318" text-anchor="middle" font-size="13" fill="#0e1b33">segredos nos arquivos do commit</text>
+  <text x="221" y="340" text-anchor="middle" font-size="12" fill="#58657e">chaves AWS, tokens GitHub e outros</text>
+  <rect x="400" y="264" width="318" height="100" rx="12" fill="#fff" stroke="#1c7f55" stroke-width="2"/>
+  <text x="559" y="294" text-anchor="middle" font-size="16" font-weight="700" fill="#0e1b33">Semgrep</text>
+  <text x="559" y="318" text-anchor="middle" font-size="13" fill="#0e1b33">11 regras do projeto</text>
+  <text x="559" y="340" text-anchor="middle" font-size="12" fill="#58657e">XSS, JWT, hash fraco, segredo fixo...</text>
+  <!-- falha pre-commit -->
+  <line x1="740" y1="290" x2="782" y2="290" stroke="#b8322a" stroke-width="2" marker-end="url(#setaV)"/>
+  <rect x="786" y="252" width="176" height="78" rx="12" fill="#fdecea" stroke="#b8322a" stroke-width="1.5"/>
+  <text x="874" y="280" text-anchor="middle" font-size="14" font-weight="700" fill="#b8322a">Falhou?</text>
+  <text x="874" y="300" text-anchor="middle" font-size="12" fill="#6b1d18">o commit não</text>
+  <text x="874" y="316" text-anchor="middle" font-size="12" fill="#6b1d18">é criado</text>
+
+  <line x1="390" y1="386" x2="390" y2="432" stroke="#44506a" stroke-width="2" marker-end="url(#seta)"/>
+  <text x="402" y="414" font-size="13" font-weight="700" fill="#44506a">git push / Pull Request</text>
+
+  <!-- SCA dependabot -->
+  <rect x="786" y="400" width="176" height="112" rx="12" fill="#f5f6f9" stroke="#8a95ab" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="874" y="426" text-anchor="middle" font-size="14" font-weight="700" fill="#0e1b33">SCA contínuo</text>
+  <text x="874" y="446" text-anchor="middle" font-size="12" fill="#0e1b33">Dependabot (semanal)</text>
+  <text x="874" y="466" text-anchor="middle" font-size="12" fill="#58657e">abre PR quando sai</text>
+  <text x="874" y="482" text-anchor="middle" font-size="12" fill="#58657e">correção para as Actions</text>
+  <text x="874" y="498" text-anchor="middle" font-size="12" fill="#58657e">e a imagem base</text>
+  <path d="M786,456 L742,456" stroke="#8a95ab" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#seta)"/>
+
+  <!-- 2. GitHub Actions -->
+  <rect x="40" y="436" width="700" height="330" rx="16" fill="#eef4ff" stroke="#16408c" stroke-width="2"/>
+  <text x="62" y="466" font-size="17" font-weight="700" fill="#16408c">2. GitHub Actions (push, pull request e toda segunda às 06h)</text>
+  <text x="62" y="488" font-size="13" fill="#58657e">Três jobs em paralelo. Arquivo: .github/workflows/devsecops.yml</text>
+
+  <rect x="62" y="506" width="210" height="236" rx="12" fill="#fff" stroke="#1c7f55" stroke-width="2"/>
+  <text x="167" y="536" text-anchor="middle" font-size="15" font-weight="700" fill="#0e1b33">Secret Scanning</text>
+  <text x="167" y="558" text-anchor="middle" font-size="13" fill="#16408c" font-weight="700">Trufflehog</text>
+  <text x="80" y="590" font-size="12" fill="#0e1b33">histórico completo</text>
+  <text x="80" y="606" font-size="12" fill="#58657e">(fetch-depth: 0)</text>
+  <text x="80" y="634" font-size="12" fill="#0e1b33">acha segredo mesmo</text>
+  <text x="80" y="650" font-size="12" fill="#0e1b33">depois de apagado</text>
+  <text x="80" y="678" font-size="12" fill="#58657e">verificados e</text>
+  <text x="80" y="694" font-size="12" fill="#58657e">desconhecidos</text>
+  <text x="80" y="722" font-size="12" font-weight="700" fill="#b8322a">falha o job</text>
+
+  <rect x="286" y="506" width="210" height="236" rx="12" fill="#fff" stroke="#1c7f55" stroke-width="2"/>
+  <text x="391" y="536" text-anchor="middle" font-size="15" font-weight="700" fill="#0e1b33">SAST</text>
+  <text x="391" y="558" text-anchor="middle" font-size="13" fill="#16408c" font-weight="700">Semgrep</text>
+  <text x="304" y="590" font-size="12" fill="#0e1b33">regras do projeto</text>
+  <text x="304" y="606" font-size="12" font-weight="700" fill="#b8322a">bloqueiam</text>
+  <text x="304" y="634" font-size="12" fill="#0e1b33">OWASP Top 10 e</text>
+  <text x="304" y="650" font-size="12" fill="#0e1b33">JavaScript (comunidade)</text>
+  <text x="304" y="666" font-size="12" fill="#58657e">informativas</text>
+  <text x="304" y="694" font-size="12" fill="#0e1b33">relatório SARIF na</text>
+  <text x="304" y="710" font-size="12" fill="#0e1b33">aba Security do GitHub</text>
+
+  <rect x="510" y="506" width="210" height="236" rx="12" fill="#fff" stroke="#16408c" stroke-width="2" stroke-dasharray="7 4"/>
+  <text x="615" y="536" text-anchor="middle" font-size="15" font-weight="700" fill="#0e1b33">Container Security</text>
+  <text x="615" y="558" text-anchor="middle" font-size="13" fill="#16408c" font-weight="700">Trivy</text>
+  <text x="528" y="590" font-size="12" fill="#0e1b33">docker build da imagem</text>
+  <text x="528" y="606" font-size="12" fill="#58657e">(nginx sem root)</text>
+  <text x="528" y="634" font-size="12" fill="#0e1b33">CVEs da imagem e erros</text>
+  <text x="528" y="650" font-size="12" fill="#0e1b33">de config do Dockerfile</text>
+  <text x="528" y="678" font-size="12" fill="#58657e">CRITICAL e HIGH com</text>
+  <text x="528" y="694" font-size="12" fill="#58657e">correção disponível</text>
+  <text x="528" y="722" font-size="12" font-weight="700" fill="#b8322a">falha o job</text>
+
+  <line x1="390" y1="766" x2="390" y2="808" stroke="#44506a" stroke-width="2" marker-end="url(#seta)"/>
+
+  <!-- Gate -->
+  <polygon points="390,812 560,880 390,948 220,880" fill="#fff8e6" stroke="#e3a21a" stroke-width="2.5"/>
+  <text x="390" y="872" text-anchor="middle" font-size="15" font-weight="700" fill="#0e1b33">Security gate</text>
+  <text x="390" y="894" text-anchor="middle" font-size="12" fill="#0e1b33">os 3 jobs passaram?</text>
+
+  <line x1="560" y1="880" x2="700" y2="880" stroke="#b8322a" stroke-width="2" marker-end="url(#setaV)"/>
+  <text x="630" y="870" text-anchor="middle" font-size="13" font-weight="700" fill="#b8322a">Não</text>
+  <rect x="704" y="826" width="258" height="108" rx="12" fill="#fdecea" stroke="#b8322a" stroke-width="1.5"/>
+  <text x="833" y="854" text-anchor="middle" font-size="14" font-weight="700" fill="#b8322a">Pipeline falha</text>
+  <text x="833" y="876" text-anchor="middle" font-size="12" fill="#6b1d18">o PR não pode ser mesclado</text>
+  <text x="833" y="894" text-anchor="middle" font-size="12" fill="#6b1d18">e nada vai para produção;</text>
+  <text x="833" y="912" text-anchor="middle" font-size="12" fill="#6b1d18">a equipe é notificada</text>
+
+  <line x1="390" y1="948" x2="390" y2="994" stroke="#1c7f55" stroke-width="2" marker-end="url(#setaG)"/>
+  <text x="402" y="978" font-size="13" font-weight="700" fill="#1c7f55">Sim (só na branch main)</text>
+
+  <rect x="200" y="998" width="380" height="76" rx="14" fill="#1c7f55"/>
+  <text x="390" y="1028" text-anchor="middle" font-size="17" font-weight="700" fill="#fff">3. Deploy (GitHub Pages)</text>
+  <text x="390" y="1052" text-anchor="middle" font-size="13" fill="#dff3e8">cabeçalhos de segurança e CSP no app</text>
+
+  <!-- legenda -->
+  <rect x="40" y="1110" width="920" height="100" rx="12" fill="#f5f6f9"/>
+  <text x="62" y="1138" font-size="14" font-weight="700" fill="#0e1b33">Legenda</text>
+  <rect x="62" y="1154" width="34" height="20" rx="5" fill="#fff" stroke="#1c7f55" stroke-width="2"/>
+  <text x="106" y="1169" font-size="13" fill="#0e1b33">executado e testado neste projeto (evidências em docs/evidencias)</text>
+  <rect x="62" y="1182" width="34" height="20" rx="5" fill="#fff" stroke="#16408c" stroke-width="2" stroke-dasharray="7 4"/>
+  <text x="106" y="1197" font-size="13" fill="#0e1b33">configurado no workflow; roda no GitHub Actions do repositório</text>
+  <rect x="600" y="1154" width="34" height="20" rx="5" fill="#f5f6f9" stroke="#8a95ab" stroke-width="1.5" stroke-dasharray="6 4"/>
+  <text x="644" y="1169" font-size="13" fill="#0e1b33">processo contínuo (Dependabot)</text>
+  <rect x="600" y="1182" width="34" height="20" rx="5" fill="#fdecea" stroke="#b8322a" stroke-width="1.5"/>
+  <text x="644" y="1197" font-size="13" fill="#0e1b33">ponto de bloqueio</text>
+</svg>

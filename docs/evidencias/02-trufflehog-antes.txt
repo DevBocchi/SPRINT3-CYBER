@@ -1,0 +1,29 @@
+$ trufflehog git file://. --no-verification --fail
+TruffleHog. Unearth your secrets. Found unverified result
+Detector Type: Github
+Decoder Type: PLAIN
+Raw result: ghp_lVLZ•••••••• [mascarado]
+Token_type: Personal Access Token (classic)
+Rotation_guide: https://howtorotate.com/docs/tutorials/github/
+Version: 2
+Commit: 0c15fdd8d562ee17d7996b31fa7186907e830b4f
+Email: Equipe Ford Challenge <equipe@ford-challenge.example>
+File: .env
+Line: 6
+Repository: file:///home/claude/repo
+Repository_local_path: /tmp/trufflehog-215-122514849
+Timestamp: 2026-09-25 21:54:58 +0000
+Found unverified result
+Detector Type: AWS
+Decoder Type: PLAIN
+Raw result: AKIAF75E•••••••• [mascarado]
+Resource_type: Access key
+Account: 412125509719
+Commit: 0c15fdd8d562ee17d7996b31fa7186907e830b4f
+Email: Equipe Ford Challenge <equipe@ford-challenge.example>
+File: .env
+Line: 4
+Repository: file:///home/claude/repo
+Repository_local_path: /tmp/trufflehog-215-122514849
+Timestamp: 2026-09-25 21:54:58 +0000
+[exit code: 183]

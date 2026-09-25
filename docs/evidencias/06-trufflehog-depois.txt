@@ -1,0 +1,8 @@
+$ git filter-repo --invert-paths --path .env --force   # remove o .env de TODOS os commits
+New history written in 0.01 seconds; now repacking/cleaning...
+Completely finished after 0.05 seconds.
+$ trufflehog git file://. --no-verification --fail
+TruffleHog. Unearth your secrets. 2026-09-25T21:56:59Z	info-0	trufflehog	running source	{"source_manager_worker_id": "B5FMF", "with_units": true}
+2026-09-25T21:56:59Z	info-0	trufflehog	scanning repo	{"source_manager_worker_id": "B5FMF", "unit_kind": "dir", "unit": "/tmp/trufflehog-704-949130490", "repo": "file:///home/claude/repo"}
+2026-09-25T21:56:59Z	info-0	trufflehog	finished scanning	{"chunks": 36, "bytes": 159520, "verified_secrets": 0, "unverified_secrets": 0, "scan_duration": "61.965374ms", "trufflehog_version": "3.97.9", "verification_caching": {"Hits":0,"Misses":0,"HitsWasted":0,"AttemptsSaved":0,"VerificationTimeSpentMS":0}}
+[exit code: 0]

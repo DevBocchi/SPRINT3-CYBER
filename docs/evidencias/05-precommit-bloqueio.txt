@@ -1,0 +1,57 @@
+$ git add app/js/telemetria-config.js
+$ git commit -m "feat: configuração da telemetria"
+Trufflehog (segredos nos arquivos do commit).............................Failed
+- hook id: trufflehog
+- exit code: 183
+
+TruffleHog. Unearth your secrets. 2026-09-25T21:56:46Z	info-0	trufflehog	running source	{"source_manager_worker_id": "jbM5Y", "with_units": true}
+Found unverified result
+Detector Type: AWS
+Decoder Type: PLAIN
+Raw result: AKIAF75E•••••••• [mascarado]
+Resource_type: Access key
+Account: 412125509719
+File: app/js/telemetria-config.js
+Line: 4
+
+2026-09-25T21:56:46Z	info-0	trufflehog	finished scanning	{"chunks": 1, "bytes": 302, "verified_secrets": 0, "unverified_secrets": 1, "scan_duration": "3.43619ms", "trufflehog_version": "3.97.9", "verification_caching": {"Hits":0,"Misses":0,"HitsWasted":0,"AttemptsSaved":0,"VerificationTimeSpentMS":0}}
+
+Semgrep (regras do projeto)..............................................Failed
+- hook id: semgrep
+- exit code: 1
+
+┌─────────────────┐
+│ 3 Code Findings │
+└─────────────────┘
+                               
+    app/js/telemetria-config.js
+   ❯❯❱ semgrep.ford.segredo-fixo-no-codigo
+          ❰❰ Blocking ❱❱
+          Segredo escrito direto no código (accessKeyId). Ele vai para o Git e para qualquer cópia do
+          repositório. Leia de variável de ambiente ou de um cofre (GitHub Secrets, Azure Key Vault).
+                                                                                                     
+            2┆ const s3Config = {
+            3┆   region: 'sa-east-1',
+            4┆   accessKeyId: 'AKIAF75E•••••••• [mascarado]',
+            5┆   secretAccessKey: 'EYl/dFGp•••••••• [mascarado]'
+            6┆ };
+            ⋮┆----------------------------------------
+   ❯❯❱ semgrep.ford.segredo-fixo-no-codigo
+          ❰❰ Blocking ❱❱
+          Segredo escrito direto no código (secretAccessKey). Ele vai para o Git e para qualquer cópia do
+          repositório. Leia de variável de ambiente ou de um cofre (GitHub Secrets, Azure Key Vault).    
+                                                                                                         
+            2┆ const s3Config = {
+            3┆   region: 'sa-east-1',
+            4┆   accessKeyId: 'AKIAF75E•••••••• [mascarado]',
+            5┆   secretAccessKey: 'EYl/dFGp•••••••• [mascarado]'
+            6┆ };
+   
+   ❯❯❱ semgrep.ford.xss-innerhtml-dinamico
+          ❰❰ Blocking ❱❱
+          innerHTML recebendo valor dinâmico. Se o valor vier do usuário ou da API, vira XSS. Use textContent
+          ou crie os elementos com document.createElement (função el() do projeto).                          
+                                                                                                             
+            9┆ el.innerHTML = `<b>Telemetria:</b> ${status.mensagem}`;
+
+[exit code: 1]  commit NÃO criado
