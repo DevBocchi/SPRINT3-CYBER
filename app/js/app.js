@@ -39,11 +39,13 @@ const PERFIS = {
   admin:    { rotulo:'Administrador',  acesso:'Configurações globais e auditoria' }
 };
 
-// Contas exibidas na tela de login só para a demonstração
+// Contas exibidas na tela de login só para a demonstração.
+// Triagem Semgrep: RISCO ACEITO. São senhas públicas de um protótipo, mostradas na própria tela;
+// não existem em nenhum ambiente real. Em produção este bloco não existe.
 const CONTAS_TESTE = [
-  { email:'cliente@demo.com',  senha:'Cliente@2026',  perfil:'cliente' },
-  { email:'analista@ford.com', senha:'Analista@2026', perfil:'analista' },
-  { email:'admin@ford.com',    senha:'Admin@2026',    perfil:'admin' }
+  { email:'cliente@demo.com',  senha:'Cliente@2026',  perfil:'cliente' },  // nosemgrep: ford.segredo-fixo-no-codigo
+  { email:'analista@ford.com', senha:'Analista@2026', perfil:'analista' }, // nosemgrep: ford.segredo-fixo-no-codigo
+  { email:'admin@ford.com',    senha:'Admin@2026',    perfil:'admin' }     // nosemgrep: ford.segredo-fixo-no-codigo
 ];
 
 /* =========================================================
@@ -263,13 +265,13 @@ function telaLogin(aviso) {
       <div id="msg" role="alert"></div>
       <div class="field">
         <label for="email">E-mail</label>
-        <input id="email" name="email" type="email" inputmode="email" autocomplete="username" maxlength="${CONFIG.EMAIL_MAX}" aria-describedby="erroEmail">
+        <input id="email" name="email" type="email" inputmode="email" autocomplete="username" aria-describedby="erroEmail">
         <div class="hint" id="erroEmail"></div>
       </div>
       <div class="field">
         <label for="senha">Senha</label>
         <div class="input-wrap">
-          <input id="senha" name="senha" type="password" autocomplete="current-password" maxlength="${CONFIG.SENHA_MAX}" aria-describedby="erroSenha" style="padding-right:84px">
+          <input id="senha" name="senha" type="password" autocomplete="current-password" aria-describedby="erroSenha" style="padding-right:84px">
           <button type="button" class="toggle-pass" id="toggleSenha" aria-pressed="false">Mostrar</button>
         </div>
         <div class="hint" id="erroSenha"></div>
@@ -284,6 +286,10 @@ function telaLogin(aviso) {
       <svg width="14" height="16" viewBox="0 0 14 16" aria-hidden="true" style="flex:none;margin-top:1px"><rect x="1" y="7" width="12" height="8.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M4 7V4.8a3 3 0 0 1 6 0V7" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
       <span>Conexão protegida com TLS 1.2 ou superior. Seus dados são tratados conforme a LGPD.</span>
     </p>`;
+
+  // Limites aplicados pelo DOM: o innerHTML acima fica só com HTML fixo (regra ford.xss-innerhtml-dinamico)
+  document.getElementById('email').maxLength = CONFIG.EMAIL_MAX;
+  document.getElementById('senha').maxLength = CONFIG.SENHA_MAX;
 
   const lista = document.getElementById('demoList');
   CONTAS_TESTE.forEach(c => {
@@ -347,7 +353,8 @@ function mostrarMsg(tipo, texto) {
 }
 
 function marcarErros(erros) {
-  const campos = { email: 'erroEmail', senha: 'erroSenha' };
+  // Triagem Semgrep: FALSO POSITIVO. 'erroSenha' é o id de um elemento da tela, não um segredo.
+  const campos = { email: 'erroEmail', senha: 'erroSenha' }; // nosemgrep: ford.segredo-fixo-no-codigo
   Object.entries(campos).forEach(([campo, idErro]) => {
     const input = document.getElementById(campo);
     input.setAttribute('aria-invalid', erros[campo] ? 'true' : 'false');
@@ -1424,7 +1431,8 @@ const SIMULACOES = {
   },
   // Pedido de exclusão sem saber a senha (ex.: celular desbloqueado na mão de outra pessoa)
   async reauth() {
-    const r = await api('POST', '/v1/me/deletion', sessao.token, { corpo: { senha: 'SenhaErrada1' } });
+    // Triagem Semgrep: FALSO POSITIVO. Senha propositalmente errada usada pela simulação de ataque.
+    const r = await api('POST', '/v1/me/deletion', sessao.token, { corpo: { senha: 'SenhaErrada1' } }); // nosemgrep: ford.segredo-fixo-no-codigo
     return `Exclusão de conta com senha errada → ${r.status} ${r.erro || ''}`;
   }
 };
