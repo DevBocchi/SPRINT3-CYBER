@@ -1,0 +1,9 @@
+# Segredos e configuração local nunca vão para o Git
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Resultados de varredura gerados localmente
+resultados/
