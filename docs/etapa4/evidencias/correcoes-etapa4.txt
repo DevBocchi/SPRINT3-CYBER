@@ -1,0 +1,12 @@
+$ login cliente (PBKDF2-SHA256, 600.000 iterações) -> ok em 364 ms
+$ login analista (PBKDF2-SHA256, 600.000 iterações) -> ok em 228 ms
+$ login admin (PBKDF2-SHA256, 600.000 iterações) -> ok em 230 ms
+$ claims do token emitido: iss=ford-posvenda-api, aud=ford-posvenda-app
+$ GET /v1/me/vehicles com token assinado corretamente, mas aud=ford-dealer-portal
+  -> 401 Sessão inválida. Entre novamente. | log: reason=invalid_claims, level=CRITICAL
+  -> alerta aberto: INC-0001 Token JWT adulterado ou forjado
+$ GET /v1/me/vehicles provocando exceção interna (opcoes = null)
+  -> 500 Não foi possível concluir agora. Tente novamente em instantes.
+  -> log: {"event":"api.internal_error","level":"CRITICAL","route":"/v1/me/vehicles","error_type":"TypeError","status":500}
+  -> a resposta traz dados? não | traz detalhe interno? não
+$ mesma rota sem exceção -> 200, 2 veículos (app segue funcionando)

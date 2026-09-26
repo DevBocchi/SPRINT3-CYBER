@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 800" font-family="DejaVu Sans, Arial, sans-serif">
+<rect width="1000" height="800" fill="#fff"/>
+<text x="40" y="46" font-size="26" font-weight="700" fill="#0a2350">Mapa de riscos: Ford Pós-Venda</text>
+<text x="40" y="72" font-size="14" fill="#58657e">À esquerda, sem controles. À direita, com os controles já implementados no projeto.</text>
+<text x="290.0" y="110" text-anchor="middle" font-size="18" font-weight="700" fill="#0e1b33">Risco inerente</text>
+<text x="100" y="215.0" text-anchor="end" font-size="13" fill="#44506a">Alta</text>
+<rect x="110" y="150" width="116" height="116" rx="10" fill="#fbd9b5"/>
+<circle cx="134" cy="180" r="15" fill="#0a2350"/><text x="134" y="184.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R6</text>
+<circle cx="168" cy="180" r="15" fill="#0a2350"/><text x="168" y="184.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R7</text>
+<rect x="230" y="150" width="116" height="116" rx="10" fill="#f6c1bb"/>
+<circle cx="254" cy="180" r="15" fill="#0a2350"/><text x="254" y="184.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R1</text>
+<rect x="350" y="150" width="116" height="116" rx="10" fill="#ec9c93"/>
+<text x="100" y="335.0" text-anchor="end" font-size="13" fill="#44506a">Média</text>
+<rect x="110" y="270" width="116" height="116" rx="10" fill="#fbf1c9"/>
+<rect x="230" y="270" width="116" height="116" rx="10" fill="#fbd9b5"/>
+<circle cx="254" cy="300" r="15" fill="#0a2350"/><text x="254" y="304.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R2</text>
+<circle cx="288" cy="300" r="15" fill="#0a2350"/><text x="288" y="304.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R3</text>
+<circle cx="322" cy="300" r="15" fill="#0a2350"/><text x="322" y="304.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R8</text>
+<rect x="350" y="270" width="116" height="116" rx="10" fill="#f6c1bb"/>
+<circle cx="374" cy="300" r="15" fill="#0a2350"/><text x="374" y="304.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R4</text>
+<circle cx="408" cy="300" r="15" fill="#0a2350"/><text x="408" y="304.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R5</text>
+<circle cx="442" cy="300" r="15" fill="#0a2350"/><text x="442" y="304.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R9</text>
+<text x="100" y="455.0" text-anchor="end" font-size="13" fill="#44506a">Baixa</text>
+<rect x="110" y="390" width="116" height="116" rx="10" fill="#d8efe2"/>
+<rect x="230" y="390" width="116" height="116" rx="10" fill="#fbf1c9"/>
+<rect x="350" y="390" width="116" height="116" rx="10" fill="#fbd9b5"/>
+<text x="168.0" y="532" text-anchor="middle" font-size="13" fill="#44506a">Médio</text>
+<text x="288.0" y="532" text-anchor="middle" font-size="13" fill="#44506a">Alto</text>
+<text x="408.0" y="532" text-anchor="middle" font-size="13" fill="#44506a">Crítico</text>
+<text x="290.0" y="558" text-anchor="middle" font-size="13" font-weight="700" fill="#44506a">Impacto</text>
+<text x="54" y="330.0" text-anchor="middle" font-size="13" font-weight="700" fill="#44506a" transform="rotate(-90 54 330.0)">Probabilidade</text>
+<path d="M478,330 L522,330" stroke="#44506a" stroke-width="3" marker-end="url(#s)"/>
+<defs><marker id="s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#44506a"/></marker></defs>
+<text x="780.0" y="110" text-anchor="middle" font-size="18" font-weight="700" fill="#0e1b33">Risco residual</text>
+<text x="590" y="215.0" text-anchor="end" font-size="13" fill="#44506a">Alta</text>
+<rect x="600" y="150" width="116" height="116" rx="10" fill="#fbd9b5"/>
+<rect x="720" y="150" width="116" height="116" rx="10" fill="#f6c1bb"/>
+<rect x="840" y="150" width="116" height="116" rx="10" fill="#ec9c93"/>
+<text x="590" y="335.0" text-anchor="end" font-size="13" fill="#44506a">Média</text>
+<rect x="600" y="270" width="116" height="116" rx="10" fill="#fbf1c9"/>
+<circle cx="624" cy="300" r="15" fill="#0a2350"/><text x="624" y="304.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R3</text>
+<circle cx="658" cy="300" r="15" fill="#0a2350"/><text x="658" y="304.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R6</text>
+<circle cx="692" cy="300" r="15" fill="#0a2350"/><text x="692" y="304.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R7</text>
+<rect x="720" y="270" width="116" height="116" rx="10" fill="#fbd9b5"/>
+<rect x="840" y="270" width="116" height="116" rx="10" fill="#f6c1bb"/>
+<text x="590" y="455.0" text-anchor="end" font-size="13" fill="#44506a">Baixa</text>
+<rect x="600" y="390" width="116" height="116" rx="10" fill="#d8efe2"/>
+<rect x="720" y="390" width="116" height="116" rx="10" fill="#fbf1c9"/>
+<circle cx="744" cy="420" r="15" fill="#0a2350"/><text x="744" y="424.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R1</text>
+<circle cx="778" cy="420" r="15" fill="#0a2350"/><text x="778" y="424.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R2</text>
+<circle cx="812" cy="420" r="15" fill="#0a2350"/><text x="812" y="424.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R8</text>
+<circle cx="744" cy="456" r="15" fill="#0a2350"/><text x="744" y="460.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R9</text>
+<rect x="840" y="390" width="116" height="116" rx="10" fill="#fbd9b5"/>
+<circle cx="864" cy="420" r="15" fill="#0a2350"/><text x="864" y="424.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R4</text>
+<circle cx="898" cy="420" r="15" fill="#0a2350"/><text x="898" y="424.5" text-anchor="middle" font-size="11.5" font-weight="700" fill="#fff">R5</text>
+<text x="658.0" y="532" text-anchor="middle" font-size="13" fill="#44506a">Médio</text>
+<text x="778.0" y="532" text-anchor="middle" font-size="13" fill="#44506a">Alto</text>
+<text x="898.0" y="532" text-anchor="middle" font-size="13" fill="#44506a">Crítico</text>
+<text x="780.0" y="558" text-anchor="middle" font-size="13" font-weight="700" fill="#44506a">Impacto</text>
+<text x="544" y="330.0" text-anchor="middle" font-size="13" font-weight="700" fill="#44506a" transform="rotate(-90 544 330.0)">Probabilidade</text>
+
+<circle cx="74" cy="640" r="13" fill="#0a2350"/><text x="74" y="644" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">R1</text><text x="96" y="645" font-size="14" fill="#0e1b33">Vazamento de dados de clientes pela API</text><circle cx="544" cy="640" r="13" fill="#0a2350"/><text x="544" y="644" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">R2</text><text x="566" y="645" font-size="14" fill="#0e1b33">Fraude de quilometragem via telemetria IoT</text><circle cx="74" cy="672" r="13" fill="#0a2350"/><text x="74" y="676" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">R3</text><text x="96" y="677" font-size="14" fill="#0e1b33">Extração da base de leads por usuário interno</text><circle cx="544" cy="672" r="13" fill="#0a2350"/><text x="544" y="676" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">R4</text><text x="566" y="677" font-size="14" fill="#0e1b33">Sequestro de conta de Administrador</text><circle cx="74" cy="704" r="13" fill="#0a2350"/><text x="74" y="708" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">R5</text><text x="96" y="709" font-size="14" fill="#0e1b33">Comprometimento da cadeia de suprimentos</text><circle cx="544" cy="704" r="13" fill="#0a2350"/><text x="544" y="708" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">R6</text><text x="566" y="709" font-size="14" fill="#0e1b33">Aparelho do cliente comprometido</text><circle cx="74" cy="736" r="13" fill="#0a2350"/><text x="74" y="740" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">R7</text><text x="96" y="741" font-size="14" fill="#0e1b33">Abuso da API e negação de serviço</text><circle cx="544" cy="736" r="13" fill="#0a2350"/><text x="544" y="740" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">R8</text><text x="566" y="741" font-size="14" fill="#0e1b33">Dados pessoais expostos em logs</text><circle cx="74" cy="768" r="13" fill="#0a2350"/><text x="74" y="772" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">R9</text><text x="96" y="773" font-size="14" fill="#0e1b33">Token de sessão forjado ou roubado</text></svg>

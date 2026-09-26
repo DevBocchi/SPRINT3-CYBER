@@ -49,7 +49,7 @@ regras:
     dominio: API
     severidade: critica
     tipo: consulta
-    kql: 'event: "api.auth.rejected" and reason: ("signature_mismatch" or "alg_not_allowed" or "malformed")'
+    kql: 'event: "api.auth.rejected" and reason: ("signature_mismatch" or "alg_not_allowed" or "malformed" or "invalid_claims")'
     playbook: PB-02
     observacao: tokens antigos após rotação de chave geram reason "key_rotated" (INFO) e não disparam esta regra
 

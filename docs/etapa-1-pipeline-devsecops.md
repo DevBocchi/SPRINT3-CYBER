@@ -37,19 +37,19 @@ A execução semanal existe porque um código parado também pode ficar vulnerá
 
 As regras da comunidade (`p/owasp-top-ten`, `p/javascript`) são genéricas. Escrevemos 11 regras para os riscos específicos deste app. Por exemplo, o protótipo guarda o token só em memória, e a regra `ford.token-em-web-storage` impede que alguém volte a usar `localStorage`. No CI, as regras do projeto **bloqueiam** o pipeline; as da comunidade são **informativas** e vão para a aba Security do GitHub.
 
-| Regra | Risco no projeto | Referência |
+| Regra | Risco no projeto | Referência (OWASP Top 10:2025) |
 |---|---|---|
-| `ford.xss-innerhtml-dinamico` | Nome do cliente ou dado da API injetado como HTML | A03:2021, CWE-79 |
-| `ford.execucao-dinamica-de-codigo` | `eval` executando entrada do usuário | A03:2021, CWE-95 |
+| `ford.xss-innerhtml-dinamico` | Nome do cliente ou dado da API injetado como HTML | A05:2025, CWE-79 |
+| `ford.execucao-dinamica-de-codigo` | `eval` executando entrada do usuário | A05:2025, CWE-95 |
 | `ford.token-em-web-storage` | JWT roubável por XSS e persistido no aparelho | Mobile M9, CWE-922 |
 | `ford.jwt-decode-sem-verificar` | Token forjado com `role: admin` aceito | API2:2023, CWE-347 |
 | `ford.jwt-sem-algoritmo-fixo` | Ataque `alg: none` ou confusão de algoritmo | API2:2023, CWE-327 |
-| `ford.segredo-fixo-no-codigo` | Chave JWT, AWS ou MQTT escrita no código | A07:2021, CWE-798 |
-| `ford.hash-fraco` | Senhas em MD5/SHA-1 quebradas rapidamente | A02:2021, CWE-328 |
-| `ford.aleatorio-inseguro` | Código de recuperação de senha previsível | A02:2021, CWE-338 |
-| `ford.cors-curinga` | Qualquer site chamando a API em nome do usuário | A05:2021, CWE-942 |
-| `ford.log-com-dado-sensivel` | Senha ou token gravado em log (LGPD) | A09:2021, CWE-532 |
-| `ford.exposicao-de-ambiente` | Endpoint de debug devolvendo `process.env` | A05:2021, CWE-200 |
+| `ford.segredo-fixo-no-codigo` | Chave JWT, AWS ou MQTT escrita no código | A07:2025, CWE-798 |
+| `ford.hash-fraco` | Senhas em MD5/SHA-1 quebradas rapidamente | A04:2025, CWE-328 |
+| `ford.aleatorio-inseguro` | Código de recuperação de senha previsível | A04:2025, CWE-338 |
+| `ford.cors-curinga` | Qualquer site chamando a API em nome do usuário | A02:2025, CWE-942 |
+| `ford.log-com-dado-sensivel` | Senha ou token gravado em log (LGPD) | A09:2025, CWE-532 |
+| `ford.exposicao-de-ambiente` | Endpoint de debug devolvendo `process.env` | A02:2025, CWE-200 |
 
 ### 2.2 Primeira varredura: 16 achados, pipeline bloqueado
 
@@ -81,7 +81,7 @@ Antes da primeira varredura oficial, a regra de segredo fixo também foi **refin
 
 | Achado | Como ficou no app |
 |---|---|
-| MD5 na senha | PBKDF2-SHA256, 100 mil iterações, salt por usuário |
+| MD5 na senha | PBKDF2-SHA256 com salt por usuário (100 mil iterações nesta etapa; elevado para 600 mil na Etapa 4) |
 | `jwt.decode` sem verificar | `analisarToken()` confere assinatura, algoritmo, validade e versão |
 | `JWT_SECRET` no código | Chave HMAC gerada em tempo de execução, não exportável |
 | Token em `localStorage` | Token só em memória |
@@ -144,7 +144,7 @@ O pre-commit pode ser ignorado com `git commit --no-verify`. É por isso que o C
 
 ## 5. SCA: Software Composition Analysis (pesquisa)
 
-**O que é.** A análise das dependências de terceiros (bibliotecas, imagens, actions) contra bases públicas de vulnerabilidades conhecidas (CVEs). Corresponde ao risco **A06:2021, Vulnerable and Outdated Components**.
+**O que é.** A análise das dependências de terceiros (bibliotecas, imagens, actions) contra bases públicas de vulnerabilidades conhecidas (CVEs). Corresponde ao risco **A03:2025, Software Supply Chain Failures** (no Top 10 de 2021, era o A06, Vulnerable and Outdated Components).
 
 **Ferramentas.**
 - **Dependabot:** nativo do GitHub e gratuito. Abre PR de atualização.

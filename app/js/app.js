@@ -7,7 +7,7 @@ const CONFIG = {
   MAX_TENTATIVAS: 5,          // falhas seguidas antes do bloqueio
   BLOQUEIO_MS: 60 * 1000,     // tempo de bloqueio da conta (rate limit)
   TOKEN_TTL_S: 15 * 60,       // validade do JWT: 15 minutos
-  PBKDF2_ITER: 100000,        // custo do hash de senha
+  PBKDF2_ITER: 600000,        // custo do hash de senha (recomendação OWASP para PBKDF2-HMAC-SHA256)
   EMAIL_MAX: 254,
   SENHA_MIN: 8,
   SENHA_MAX: 64
@@ -19,11 +19,11 @@ const CONFIG = {
    ========================================================= */
 const USUARIOS = [
   { id:'u-1001', email:'cliente@demo.com',  nome:'Mariana Souza', perfil:'cliente',
-    salt:'268ee2d59f3ed01904f0bec926472145', hash:'c8aa81ee629fe60823ac2627a5dbb1af4547caf442decf97e833eb64dfae9594' },
+    salt:'b25b2c7177d166d1a8130495a6c0d8f0', hash:'519dca67efe6904af3298d137ad781300f84a17abddddc620b421f35ba6bdfb7' },
   { id:'u-2001', email:'analista@ford.com', nome:'Rafael Lima',   perfil:'analista',
-    salt:'0dfa1a07ab7b880f3483d7fa868a048d', hash:'18d86e568840173ea419c2295cde3cdfdf54707fa4b9e1b75229a3a91f374146' },
+    salt:'6f12f5b03e03ee29ca857ed35e0943fc', hash:'e788b6aaa63b2ff731ca51cd3084025f3ceb9fcef79462eb69fc359e9aacab08' },
   { id:'u-9001', email:'admin@ford.com',    nome:'Carla Mendes',  perfil:'admin',
-    salt:'ae890809d2566d2da4c7470648346e17', hash:'6cef9ae67599e1392883dee04d334d4ce7d148a38bba1da4a4a87b4a77c0b86d' },
+    salt:'0895e1de52b5c81d589524bba5871119', hash:'938c647da6230e6a633d080f9c964ca099796b61e71c0e9daa85977661736b32' },
   // Contas sem senha de demonstração: aparecem na gestão do Administrador
   { id:'u-1002', email:'pedro.alves@email.com',  nome:'Pedro Alves',    perfil:'cliente' },
   { id:'u-2002', email:'juliana.castro@ford.com', nome:'Juliana Castro', perfil:'analista' }
@@ -64,7 +64,7 @@ const Log = {
       trace_id: crypto.randomUUID(),
       source: 'app-mobile',
       ip: IP_ORIGEM,
-      app_version: '0.7.0',
+      app_version: '0.8.0',
       ...dados
     };
     this.itens.push(entrada);
@@ -187,6 +187,10 @@ async function iniciarChaveJWT() {
   chaveJWT = await crypto.subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
 }
 
+// Quem emite o token e para quem ele serve (ASVS 5.0, V9.2: aceitar só tokens destinados a este serviço)
+const JWT_ISS = 'ford-posvenda-api';
+const JWT_AUD = 'ford-posvenda-app';
+
 const b64url = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes)))
   .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const b64urlJson = obj => b64url(enc.encode(JSON.stringify(obj)));
@@ -200,7 +204,7 @@ async function emitirToken(usuario) {
   const agora = Math.floor(Date.now() / 1000);
   const header = { alg: 'HS256', typ: 'JWT' };
   // ver = versão do token da conta. Quando o admin muda o perfil ou encerra as sessões, a versão sobe e tokens antigos morrem.
-  const payload = { sub: usuario.id, role: usuario.perfil, ver: usuario.versaoToken, iat: agora, exp: agora + CONFIG.TOKEN_TTL_S, jti: crypto.randomUUID() };
+  const payload = { iss: JWT_ISS, aud: JWT_AUD, sub: usuario.id, role: usuario.perfil, ver: usuario.versaoToken, iat: agora, exp: agora + CONFIG.TOKEN_TTL_S, jti: crypto.randomUUID() };
   const base = b64urlJson(header) + '.' + b64urlJson(payload);
   const assinatura = await crypto.subtle.sign('HMAC', chaveJWT, enc.encode(base));
   return base + '.' + b64url(assinatura);
@@ -213,13 +217,15 @@ async function analisarToken(token) {
     if (!h || !p || !s) return { payload: null, motivo: 'malformed' };
     const header = JSON.parse(new TextDecoder().decode(b64urlParaBytes(h)));
     if (header.alg !== 'HS256') return { payload: null, motivo: 'alg_not_allowed' }; // recusa "alg: none"
+    if (header.typ !== 'JWT') return { payload: null, motivo: 'malformed' };
     const ok = await crypto.subtle.verify('HMAC', chaveJWT, b64urlParaBytes(s), enc.encode(h + '.' + p));
     if (!ok) {
       const antiga = chaveJWTAnterior && await crypto.subtle.verify('HMAC', chaveJWTAnterior, b64urlParaBytes(s), enc.encode(h + '.' + p));
       return { payload: null, motivo: antiga ? 'key_rotated' : 'signature_mismatch' };
     }
     const payload = JSON.parse(new TextDecoder().decode(b64urlParaBytes(p)));
-    if (payload.exp <= Math.floor(Date.now() / 1000)) return { payload: null, motivo: 'expired' };
+    if (payload.iss !== JWT_ISS || payload.aud !== JWT_AUD) return { payload: null, motivo: 'invalid_claims' };
+    if (typeof payload.exp !== 'number' || payload.exp <= Math.floor(Date.now() / 1000)) return { payload: null, motivo: 'expired' };
     const dono = USUARIOS.find(u => u.id === payload.sub);
     if (!dono || dono.versaoToken !== payload.ver || dono.perfil !== payload.role) return { payload: null, motivo: 'revoked' };
     return { payload, motivo: null };
@@ -547,7 +553,18 @@ function negar(payload, rota, motivo, status, erro) {
   return { status, erro };
 }
 
+// A10:2025 (tratamento de condições excepcionais): se algo inesperado quebrar dentro da API,
+// a resposta é um 500 genérico. Nunca devolve dado parcial, stack trace ou mensagem interna.
 async function api(metodo, rota, token, opcoes = {}) {
+  try {
+    return await apiInterna(metodo, rota, token, opcoes);
+  } catch (e) {
+    Log.registrar('api.internal_error', 'CRITICAL', { method: metodo, route: String(rota).replace(/[a-z]-\d{4}/g, '{id}'), error_type: (e && e.name) || 'Error', status: 500 });
+    return { status: 500, erro: 'Não foi possível concluir agora. Tente novamente em instantes.' };
+  }
+}
+
+async function apiInterna(metodo, rota, token, opcoes = {}) {
   // 0) Origem bloqueada pela equipe de resposta a incidentes (seção 25)
   if (ipBloqueado()) {
     Log.registrar('waf.blocked', 'WARN', { method: metodo, route: rota, status: 403, reason: 'ip_blocked_by_incident_response' });
@@ -2367,7 +2384,7 @@ const REGRAS_ALERTA = [
     eventos: ['auth.login.failure'], chave: e => e.ip, distinto: e => e.account_ref, limite: 3, janelaMin: 5,
     acao: 'Bloquear o IP de origem no WAF e revisar os logins bem-sucedidos vindos dele.' },
   { id: 'ALR-04', nome: 'Token JWT adulterado ou forjado', dominio: 'API', severidade: 'critica',
-    eventos: ['api.auth.rejected'], filtro: e => ['signature_mismatch', 'alg_not_allowed', 'malformed'].includes(e.reason),
+    eventos: ['api.auth.rejected'], filtro: e => ['signature_mismatch', 'alg_not_allowed', 'malformed', 'invalid_claims'].includes(e.reason),
     chave: e => e.ip, limite: 1, janelaMin: 60,
     acao: 'Tratar como tentativa de invasão. Se houver suspeita de vazamento da chave de assinatura, rotacionar a chave, o que invalida todos os tokens.' },
   { id: 'ALR-05', nome: 'Acesso a dado de outro cliente (BOLA/IDOR)', dominio: 'API', severidade: 'alta',

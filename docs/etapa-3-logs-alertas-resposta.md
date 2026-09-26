@@ -54,13 +54,13 @@ Todo evento tem os mesmos campos-base, o que permite buscar e correlacionar qual
 | Categoria | Eventos |
 |---|---|
 | **Login** | `auth.login.success`, `auth.login.failure`, `auth.login.invalid_input`, `auth.account.lockout`, `auth.logout`, `auth.token.expired` |
-| **Falhas de autenticação na API** | `api.auth.rejected` (motivo: `signature_mismatch`, `alg_not_allowed`, `expired`, `revoked`, `key_rotated`) |
+| **Falhas de autenticação na API** | `api.auth.rejected` (motivo: `signature_mismatch`, `alg_not_allowed`, `invalid_claims`, `expired`, `revoked`, `key_rotated`) |
 | **Autorização** | `access.denied`, `api.authz.bola_attempt`, `access.denied_suspended` |
 | **Alterações críticas** | `admin.user.role_changed`, `admin.user.sessions_revoked`, `admin.user.unlocked`, `privacy.account_deleted`, `privacy.consent.revoked` |
 | **Dados** | `data.access`, `data.sensitive.read`, `privacy.data_export`, `data.location.used` |
 | **Mobile** | `storage.cache.write`, `storage.cache.integrity_fail` |
 | **IoT** | `iot.telemetry.accepted`, `iot.telemetry.rejected`, `iot.telemetry.quarantined`, `iot.telemetry.discarded` |
-| **Proteções** | `api.rate_limited`, `api.input.rejected`, `waf.blocked` |
+| **Proteções** | `api.rate_limited`, `api.input.rejected`, `waf.blocked`, `api.internal_error` |
 | **Segurança** | `alert.triggered`, `ir.step.completed`, `ir.phase.completed`, `ir.action.executed`, `ir.incident.closed` |
 
 ### 2.3 Exemplos reais
@@ -174,7 +174,7 @@ As métricas planejadas dependem da infraestrutura de produção (APM, Crashlyti
 | ALR-01 | Falhas de login na mesma conta | 3 em 5 min | Média | PB-01 |
 | ALR-02 | Conta bloqueada por força bruta | 1 evento | Alta | PB-01 |
 | ALR-03 | Falhas em contas diferentes, mesma origem (*spraying*) | 3 contas em 5 min | Alta | PB-01 |
-| ALR-04 | Token com assinatura inválida ou `alg` proibido | 1 evento | **Crítica** | PB-02 |
+| ALR-04 | Token com assinatura inválida, `alg` proibido ou emitido para outro serviço | 1 evento | **Crítica** | PB-02 |
 | ALR-05 | Pedido de veículo ou agendamento de outro cliente (BOLA) | 1 evento | Alta | PB-03 |
 | ALR-06 | Acesso negado por perfil | 2 em 10 min | Alta | PB-03 |
 | ALR-07 | Rate limit atingido | 1 evento | Média | PB-05 |
@@ -190,7 +190,7 @@ As métricas planejadas dependem da infraestrutura de produção (APM, Crashlyti
 
 **Consultas KQL para o Kibana** (todas no catálogo):
 ```
-ALR-04  event: "api.auth.rejected" and reason: ("signature_mismatch" or "alg_not_allowed" or "malformed")
+ALR-04  event: "api.auth.rejected" and reason: ("signature_mismatch" or "alg_not_allowed" or "malformed" or "invalid_claims")
 ALR-03  event: "auth.login.failure"   | agrupar por ip, contar account_ref distintos >= 3 em 5 min
 ALR-08  event: "data.access" and route: "/v1/analytics/leads"   | agrupar por user_id, >= 5 em 5 min
 ```
