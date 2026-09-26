@@ -1,0 +1,24 @@
+$ [Cliente] Adulterar cache local (1 byte alterado)
+  -> 1 byte alterado → AES-GCM recusou a leitura (tag inválida). Cache descartado.
+$ [Cliente] Ver veículo de outro cliente (BOLA)
+  -> GET /v1/vehicles/v-5099 → 404 Veículo não encontrado.
+$ [Cliente] Adulterar token para admin
+  -> Token com role=admin e assinatura original → GET /v1/admin/users → 401 Sessão inválida. Entre novamente.
+$ [Cliente] Injetar script nas observações
+  -> observacoes = <img onerror=...> → 400 As observações aceitam letras, números e pontuação comum.
+$ [Cliente] Enviar campos extras (mass assignment)
+  -> Pedido com status="concluido" e preco=0 → 400 O pedido tem campos não permitidos.
+$ [Cliente] Clique duplo no agendamento (idempotência)
+  -> 2 envios, mesma chave → [201 AGD-2026-00001] e [201 (replay) AGD-2026-00001]. Agendamentos criados para a Ranger: 1.
+$ [Cliente] Acessar rota de outro perfil
+  -> Cliente → GET /v1/analytics/leads → 403 Você não tem permissão para esta ação.
+$ [Analista] Acessar rota de outro perfil
+  -> Analista Ford → PATCH /v1/admin/users/u-2001 → 403 Você não tem permissão para esta ação.
+$ [Analista] Adulterar token para admin
+  -> Token com role=admin e assinatura original → GET /v1/admin/users → 401 Sessão inválida. Entre novamente.
+$ [Admin] Acessar rota de outro perfil
+  -> Administrador → GET /v1/analytics/leads → 403 Você não tem permissão para esta ação.
+$ [Admin] Encerrar sessão da cliente e reusar o token
+  -> Token da cliente antes: 200. Admin encerra sessões: 200. Mesmo token depois: 401 (revogado).
+$ [Cliente] Disparar 35 requisições (rate limit)
+  -> 35 requisições → 16× 200, 19× 429

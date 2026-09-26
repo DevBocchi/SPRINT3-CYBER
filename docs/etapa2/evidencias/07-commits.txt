@@ -1,0 +1,21 @@
+$ git log --reverse --oneline
+e99d004  feat: app mobile e API inicial de autenticação
+1c22aa5  ci: adiciona pipeline DevSecOps (Semgrep, Trufflehog, pre-commit, Trivy)
+7c6c216  security: remove .env do repositório e adiciona .gitignore
+fc3af18  security: corrige os 16 achados do Semgrep
+fbad776  docs: documentação da Etapa 1, diagrama do pipeline e evidências
+57d0d04  feat: monitoramento, alertas e resposta a incidentes (Etapa 3)
+2b1e2b7  security: correções da análise OWASP e documentação da Etapa 4
+
+2b1e2b7 security: correções da análise OWASP e documentação da Etapa 4
+
+ .semgrep/ford-regras.yml                    |  18 +--
+ app/js/app.js                               |  33 +++-
+ docs/etapa-1-pipeline-devsecops.md          |  22 +--
+ docs/etapa-3-logs-alertas-resposta.md       |   8 +-
+ docs/etapa-4-vulnerabilidades-owasp.md      | 229 ++++++++++++++++++++++++++++
+ docs/etapa4/evidencias/correcoes-etapa4.png | Bin 0 -> 189916 bytes
+ docs/etapa4/evidencias/correcoes-etapa4.txt |  12 ++
+ docs/etapa4/mapa-riscos.png                 | Bin 0 -> 179479 bytes
+ docs/etapa4/mapa-riscos.svg                 |  62 ++++++++
+ monitoramento/regras-alerta.yml             |   2 +-
